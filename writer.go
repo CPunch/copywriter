@@ -11,11 +11,14 @@ const (
 )
 
 func getListOfPreviousPosts() string {
-	// TODO: Implement this
+	// get max last 10 posts
+	posts := getPosts(10)
+	var titles []string
+	for _, post := range posts {
+		titles = append(titles, post.Title)
+	}
 
-	// but honestly, this prompt seems to be working well for now lol
-	// i blame the werewolves
-	return "Empowering Conversations on Mental Health\nHow to avoid burnout\nIs your child a werewolf? Look for these 3 signs\nHow to build a birdhouse\n"
+	return strings.Join(titles, "\n")
 }
 
 func genBlogTitle() string {
@@ -96,13 +99,14 @@ func populateImages(content string) string {
 	return strings.Join(lines, "\n")
 }
 
-func genBlogPost() string {
+func genBlogPost(title string) string {
 	if e := recover(); e != nil {
 		Fail("%s", e)
 		return ""
 	}
 
-	title := genBlogTitle()
+	// sometimes gpt will generate a title with weird whitespace
+	title = strings.TrimSpace(title)
 
 	Info("Generating blog post contents about '%s'", title)
 	markdown := generateResponse(ResponseOptions{
