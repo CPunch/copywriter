@@ -4,22 +4,39 @@ import (
 	"context"
 	"flag"
 	"os"
+	"strings"
+	"unicode"
 
 	"github.com/google/subcommands"
 )
 
+func genBlogFileName(title string) string {
+	// strip any non-alphanumeric characters
+	title = strings.Map(func(r rune) rune {
+		if unicode.IsLetter(r) || unicode.IsNumber(r) {
+			return r
+		}
+		return -1
+	}, title)
+
+	title = strings.TrimSpace(title)
+	title = strings.ReplaceAll(title, " ", "-")
+
+	return title + ".md"
+}
+
 type Write struct {
-	Outfile string
+	Outdir string
 }
 
 func (*Write) Name() string     { return "write" }
 func (*Write) Synopsis() string { return "Write a post" }
 func (w *Write) SetFlags(f *flag.FlagSet) {
-	f.StringVar(&w.Outfile, "o", "out.md", "output file")
+	f.StringVar(&w.Outdir, "o", "content/post", "output file")
 }
 
 func (*Write) Usage() string {
-	return "write [-o outfile] <title>:\n\tWrite a post. If not title is provided, one will be generated based on previous post titles.\n"
+	return "write [-o outdir] <title>:\n\tWrite a post. If not title is provided, one will be generated based on previous post titles.\n"
 }
 
 func (w *Write) Execute(_ context.Context, f *flag.FlagSet, _ ...interface{}) subcommands.ExitStatus {
@@ -33,13 +50,14 @@ func (w *Write) Execute(_ context.Context, f *flag.FlagSet, _ ...interface{}) su
 	}
 
 	// generate the post
+	outFile := w.Outdir + "/" + genBlogFileName(title) + ".md"
 	post := genBlogPost(title)
 	Success("Generated post '%s'!", title)
 
-	Info("Writing to file '%s'...", w.Outfile)
+	Info("Writing to file '%s'...", outFile)
 	// write to outfile
-	if err := os.WriteFile(w.Outfile, []byte(post), 0644); err != nil {
-		Fail("Failed to write to file '%s': %v", w.Outfile, err)
+	if err := os.WriteFile(outFile, []byte(post), 0644); err != nil {
+		Fail("Failed to write to file '%s': %v", outFile, err)
 	}
 
 	Info("Adding post to DB...")
