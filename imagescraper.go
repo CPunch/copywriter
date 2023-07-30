@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"io"
 	"math/rand"
 	"net/http"
@@ -130,8 +129,7 @@ func doImageSearch(searchQuery string) []string {
 
 func getImageUrl(query string) string {
 	imgs := doImageSearch(query)
-
-	fmt.Println("Found", len(imgs), "images")
+	Info("Found %d images", len(imgs))
 
 	// TODO: maybe ask GPT to select the best one ?
 	indx := rand.Intn(len(imgs))
