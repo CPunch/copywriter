@@ -57,11 +57,8 @@ func validateURL(url string) bool {
 		return false
 	}
 
-	if resp.ContentLength > 10000000 {
-		return false
-	}
-
-	if resp.ContentLength < 5000 {
+	// response body too big or too small? helps keep logos and stuff out too
+	if resp.ContentLength > 10000000 || resp.ContentLength < 5000 {
 		return false
 	}
 
