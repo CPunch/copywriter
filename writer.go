@@ -120,5 +120,5 @@ func genBlogPost(title string) string {
 	thumbnail := genImageAboutMeta(title)
 	tags := genBlogTags(markdown)
 	author := "Mason Coleman"
-	return fmt.Sprintf("---\ntitle: %s\nauthor: %s\ndate: %s\ntags: %s\nimage: %s\n---\n\n%s", title, author, getTimeString(), tags, thumbnail, content)
+	return fmt.Sprintf("---\ntitle: \"%s\"\nauthor: %s\ndate: %s\ntags: %s\nimage: \"%s\"\n---\n\n%s", title, author, getTimeString(), tags, thumbnail, content)
 }
