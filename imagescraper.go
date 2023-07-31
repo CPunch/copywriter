@@ -18,24 +18,6 @@ var (
 )
 
 func validateURL(url string) bool {
-	// // validate that image source is allowed
-	// validExtension := false
-	// for _, ext := range IMAGE_EXTENSIONS {
-	// 	if strings.HasSuffix(url, ext) {
-	// 		validExtension = true
-	// 		break
-	// 	}
-	// }
-
-	// // embedded images are cool too, but we need to make sure they're not a logo or something lol
-	// if strings.Contains(url, "data:image") && len(url) > 100 {
-	// 	return true
-	// }
-
-	// if !validExtension {
-	// 	return false
-	// }
-
 	// make request
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {

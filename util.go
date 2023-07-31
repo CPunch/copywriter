@@ -61,7 +61,8 @@ func generateResponse(options ResponseOptions) string {
 		)
 
 		if err != nil {
-			// try again
+			// try again but sleep for a bit
+			time.Sleep(1 * time.Second)
 			continue
 		}
 

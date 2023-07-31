@@ -13,7 +13,7 @@ import (
 func genBlogFileName(title string) string {
 	// strip any non-alphanumeric characters
 	title = strings.Map(func(r rune) rune {
-		if unicode.IsLetter(r) || unicode.IsNumber(r) {
+		if unicode.IsLetter(r) || unicode.IsNumber(r) || unicode.IsSpace(r) {
 			return r
 		}
 		return -1
@@ -46,12 +46,14 @@ func (w *Write) Execute(_ context.Context, f *flag.FlagSet, _ ...interface{}) su
 	}
 
 	if title == "" {
-		title = genBlogTitle()
+		title = GenBlogTitle()
 	}
+
+	Info("Generating post '%s'...", title)
 
 	// generate the post
 	outFile := w.Outdir + "/" + genBlogFileName(title) + ".md"
-	post := genBlogPost(title)
+	post := GenBlogPost(title)
 	Success("Generated post '%s'!", title)
 
 	Info("Writing to file '%s'...", outFile)

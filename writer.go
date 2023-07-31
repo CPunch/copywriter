@@ -10,6 +10,15 @@ const (
 	MAX_RETRY = 5
 )
 
+const (
+	GEN_TITLE_MODE_PREVIOUS_TITLES = iota
+	GEN_TITLE_MODE_TRENDS
+)
+
+var (
+	GEN_TITLE_MODE = GEN_TITLE_MODE_TRENDS
+)
+
 func getListOfPreviousPosts() string {
 	// get max last 10 posts
 	posts := getPosts(10)
@@ -21,13 +30,15 @@ func getListOfPreviousPosts() string {
 	return strings.Join(titles, "\n")
 }
 
-func genBlogTitle() string {
+func genBlogTitleBasedOnPreviousTitles() string {
 	for i := 0; i < MAX_RETRY; i++ { // just in case gpt is a DUMBASS; i don't wanna burn a million dollars
 		titles := generateResponse(ResponseOptions{
 			MaxTokens: 25,
 			Prompt:    fmt.Sprintf("The following is a list of titles of blog posts:\n%s", getListOfPreviousPosts()),
 			UseGPT4:   false,
 		})
+
+		titles = strings.ReplaceAll(titles, "\"", "")
 
 		// split titles by '\n'
 		titleList := strings.Split(titles, "\n")
@@ -41,6 +52,46 @@ func genBlogTitle() string {
 	}
 
 	Fail("Failed to create title!")
+	return ""
+}
+
+func genBlogTitleBasedOnTrends() string {
+	trends := getPopularTrends()
+
+	for i := 0; i < MAX_RETRY; i++ { // just in case gpt is a DUMBASS; i don't wanna burn a million dollars
+		titles := generateResponse(ResponseOptions{
+			MaxTokens: 25,
+			Prompt:    fmt.Sprintf("The following is a list of topics:\n%s\n\nWhat is an example of a title of a blog post that matches these trends: ", strings.Join(trends, "\n")),
+			UseGPT4:   false,
+		})
+
+		titles = strings.ReplaceAll(titles, "\"", "")
+
+		// split titles by '\n'
+		titleList := strings.Split(titles, "\n")
+
+		// no titles?? try again
+		if len(titleList) == 0 {
+			continue
+		}
+
+		return titleList[0]
+	}
+
+	Fail("Failed to create title!")
+	return ""
+}
+
+func GenBlogTitle() string {
+	switch GEN_TITLE_MODE {
+	case GEN_TITLE_MODE_PREVIOUS_TITLES:
+		return genBlogTitleBasedOnPreviousTitles()
+	case GEN_TITLE_MODE_TRENDS:
+		return genBlogTitleBasedOnTrends()
+	}
+
+	Fail("Invalid GEN_TITLE_MODE: %v", GEN_TITLE_MODE)
+
 	return ""
 }
 
@@ -99,11 +150,12 @@ func populateImages(content string) string {
 	return strings.Join(lines, "\n")
 }
 
-func genBlogPost(title string) string {
-	if e := recover(); e != nil {
-		Fail("%s", e)
-		return ""
-	}
+func GenBlogPost(title string) string {
+	defer func() {
+		if e := recover(); e != nil {
+			Fail("%s", e)
+		}
+	}()
 
 	// sometimes gpt will generate a title with weird whitespace
 	title = strings.TrimSpace(title)
