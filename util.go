@@ -23,7 +23,7 @@ func getEnv(key string, fallback string) string {
 
 func getTimeString() string {
 	dt := time.Now()
-	return fmt.Sprintf(dt.Format("2006-01-02"))
+	return fmt.Sprintf(dt.Format("2006-01-02 15:04:05"))
 }
 
 type ResponseOptions struct {
