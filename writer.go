@@ -121,7 +121,7 @@ func (bw *BlogWriter) genBlogContent() string {
 	})
 
 	// inject images
-	return markdown //populateImages(markdown)
+	return populateImages(markdown)
 }
 
 func (bw *BlogWriter) genHeaders() string {
