@@ -85,13 +85,14 @@ func genBlogTitleBasedOnTrends() string {
 func GenBlogTitle() string {
 	switch GEN_TITLE_MODE {
 	case GEN_TITLE_MODE_PREVIOUS_TITLES:
+		Info("Generating title based on previous titles...")
 		return genBlogTitleBasedOnPreviousTitles()
 	case GEN_TITLE_MODE_TRENDS:
+		Info("Generating title based on trends...")
 		return genBlogTitleBasedOnTrends()
 	}
 
 	Fail("Invalid GEN_TITLE_MODE: %v", GEN_TITLE_MODE)
-
 	return ""
 }
 
@@ -123,7 +124,6 @@ func genImageAboutMeta(prompt string) string {
 		UseGPT4:   false,
 	})
 
-	Info("Looking for images with query '%s'", query)
 	return getImageUrl(query)
 }
 
@@ -160,7 +160,7 @@ func GenBlogPost(title string) string {
 	// sometimes gpt will generate a title with weird whitespace
 	title = strings.TrimSpace(title)
 
-	Info("Generating blog post contents about '%s'", title)
+	Info("Generating blog post contents...")
 	markdown := generateResponse(ResponseOptions{
 		MaxTokens: 5000,
 		Prompt:    fmt.Sprintf("The following is a blog post written in markdown about %s, minimum 1000 words *DO NOT INCLUDE THE TITLE*:\n\n", title),
@@ -172,5 +172,8 @@ func GenBlogPost(title string) string {
 	thumbnail := genImageAboutMeta(title)
 	tags := genBlogTags(markdown)
 	author := "Mason Coleman"
-	return fmt.Sprintf("---\ntitle: \"%s\"\nauthor: %s\ndate: %s\ntags: %s\nimage: \"%s\"\n---\n\n%s", title, author, getTimeString(), tags, thumbnail, content)
+	fullPost := fmt.Sprintf("---\ntitle: \"%s\"\nauthor: %s\ndate: %s\ntags: %s\nimage: \"%s\"\n---\n\n%s", title, author, getTimeString(), tags, thumbnail, content)
+
+	Success("Generated post!")
+	return fullPost
 }

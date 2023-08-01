@@ -49,12 +49,11 @@ func (w *Write) Execute(_ context.Context, f *flag.FlagSet, _ ...interface{}) su
 		title = GenBlogTitle()
 	}
 
-	Info("Generating post '%s'...", title)
+	Info("Title: '%s'...", title)
 
 	// generate the post
 	outFile := w.Outdir + "/" + genBlogFileName(title)
 	post := GenBlogPost(title)
-	Success("Generated post '%s'!", title)
 
 	Info("Writing to file '%s'...", outFile)
 	// write to outfile

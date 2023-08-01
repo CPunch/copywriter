@@ -63,9 +63,10 @@ func doImageSearch(searchQuery string) []string {
 	scrapedImages := []string{}
 
 	// make our search query url friendly
+	searchQuery = strings.Replace(searchQuery, "\"", "", -1)
 	searchString := strings.Replace(searchQuery, " ", "-", -1)
-	searchString = strings.Replace(searchString, "\"", "", -1)
 
+	Info("Scraping images with query '%s'", searchQuery)
 	c := colly.NewCollector()
 	c.UserAgent = USER_AGENT
 	c.AllowURLRevisit = true
@@ -103,12 +104,12 @@ func doImageSearch(searchQuery string) []string {
 	c.Visit("https://www.google.com/images?q=" + stocSnapQuery)
 	c.Visit("https://stocksnap.io/search/" + stocSnapQuery)
 
+	Info("Found %d images!", len(scrapedImages))
 	return scrapedImages
 }
 
 func getImageUrl(query string) string {
 	imgs := doImageSearch(query)
-	Info("Found %d images", len(imgs))
 
 	// TODO: maybe ask GPT to select the best one ?
 	indx := rand.Intn(len(imgs))
