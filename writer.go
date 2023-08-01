@@ -132,7 +132,7 @@ func populateImages(content string) string {
 	lines := strings.Split(content, "\n")
 
 	// strip lines
-	for i, _ := range lines {
+	for i := range lines {
 		lines[i] = strings.TrimSpace(lines[i])
 	}
 
