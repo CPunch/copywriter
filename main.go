@@ -21,6 +21,7 @@ func genBlogFileName(title string) string {
 
 	title = strings.TrimSpace(title)
 	title = strings.ReplaceAll(title, " ", "-")
+	title = strings.ToLower(title)
 
 	return title + ".md"
 }
@@ -32,28 +33,32 @@ type Write struct {
 func (*Write) Name() string     { return "write" }
 func (*Write) Synopsis() string { return "Write a post" }
 func (w *Write) SetFlags(f *flag.FlagSet) {
-	f.StringVar(&w.Outdir, "o", "content/post", "output file")
+	f.StringVar(&w.Outdir, "o", ".", "output directory")
 }
 
 func (*Write) Usage() string {
 	return "write [-o outdir] <title>:\n\tWrite a post. If not title is provided, one will be generated based on previous post titles.\n"
 }
 
-func (w *Write) Execute(_ context.Context, f *flag.FlagSet, _ ...interface{}) subcommands.ExitStatus {
+func (w *Write) Execute(ctx context.Context, f *flag.FlagSet, _ ...interface{}) subcommands.ExitStatus {
+	defer func() {
+		if e := recover(); e != nil {
+			Fail("%s", e)
+		}
+	}()
+
+	config := ctx.Value("conf").(*Config)
+	bw := NewBlogWriter(config, w.Outdir)
+
+	// build title
 	var title string
 	for _, arg := range f.Args() {
 		title += arg + " "
 	}
 
-	if title == "" {
-		title = GenBlogTitle()
-	}
-
-	Info("Title: '%s'...", title)
-
 	// generate the post
-	outFile := w.Outdir + "/" + genBlogFileName(title)
-	post := GenBlogPost(title)
+	post := bw.WritePost(title)
+	outFile := w.Outdir + "/" + genBlogFileName(bw.Title)
 
 	Info("Writing to file '%s'...", outFile)
 	// write to outfile
@@ -61,8 +66,6 @@ func (w *Write) Execute(_ context.Context, f *flag.FlagSet, _ ...interface{}) su
 		Fail("Failed to write to file '%s': %v", outFile, err)
 	}
 
-	Info("Adding post to DB...")
-	addPost(title, post)
 	Success("Done!")
 	return subcommands.ExitSuccess
 }
@@ -70,12 +73,13 @@ func (w *Write) Execute(_ context.Context, f *flag.FlagSet, _ ...interface{}) su
 func main() {
 	subcommands.Register(&Write{}, "")
 
-	conf := flag.String("db", "default.db", "SQLite DB file")
+	conf := flag.String("db", "copywriter.ini", "copywriter config file")
 	subcommands.Register(subcommands.HelpCommand(), "")
 	subcommands.Register(subcommands.FlagsCommand(), "")
 	subcommands.Register(subcommands.CommandsCommand(), "")
 
 	flag.Parse()
-	openDB(*conf)
-	os.Exit(int(subcommands.Execute(context.Background())))
+	config := LoadConfig(*conf)
+	ctx := context.WithValue(context.Background(), "conf", config)
+	os.Exit(int(subcommands.Execute(ctx)))
 }

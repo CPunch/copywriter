@@ -6,8 +6,9 @@ import (
 	"github.com/groovili/gogtrends"
 )
 
-func getPopularTrends() []string {
-	stories, err := gogtrends.Realtime(context.Background(), "en-US", "US", "all")
+func getPopularTrends(category string) []string {
+	Info("Scraping google trends in category '%s'...", category)
+	stories, err := gogtrends.Realtime(context.Background(), "en-US", "US", category)
 	if err != nil {
 		Fail("Failed to scrape google trends: %s", err.Error())
 		return nil

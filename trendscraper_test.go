@@ -6,5 +6,5 @@ import (
 )
 
 func TestGetPopularTrends(t *testing.T) {
-	fmt.Println(getPopularTrends())
+	fmt.Println(getPopularTrends("all"))
 }
