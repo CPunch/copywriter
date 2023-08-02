@@ -12,7 +12,7 @@ const (
 
 func genImageAboutMeta(prompt string) string {
 	query := generateResponse(ResponseOptions{
-		MaxTokens: 20,
+		MaxTokens: 25,
 		Prompt:    fmt.Sprintf("%s\n---\n search query to find a relevant image for the above text: ", prompt),
 		UseGPT4:   false,
 	})

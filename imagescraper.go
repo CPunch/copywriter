@@ -18,6 +18,12 @@ var (
 	IMAGE_EXTENSIONS = []string{".jpg", ".jpeg", ".png", ".gif"}
 )
 
+/*
+ In the future, I want to scrape the images and dump them to a file. currently we just return the url,
+ but we really should be downloading the image and saving, that way in case google decides to remove the
+ image, we still have it.
+*/
+
 func validateURL(url string) bool {
 	// make request
 	req, err := http.NewRequest("GET", url, nil)
@@ -71,6 +77,7 @@ func doImageSearch(searchQuery string) []string {
 	}, searchQuery)
 
 	// make our search query url friendly
+	searchQuery = strings.Split(searchQuery, "\n")[0]
 	searchQuery = strings.TrimSpace(searchQuery)
 	searchString := strings.Replace(searchQuery, " ", "-", -1)
 
@@ -118,6 +125,11 @@ func doImageSearch(searchQuery string) []string {
 
 func getImageUrl(query string) string {
 	imgs := doImageSearch(query)
+
+	// TODO: replace this :(
+	if len(imgs) == 0 {
+		return "https://www.rd.com/wp-content/uploads/2020/11/GettyImages-889552354-e1606774439626.jpg"
+	}
 
 	// TODO: maybe ask GPT to select the best one ?
 	indx := rand.Intn(len(imgs))
