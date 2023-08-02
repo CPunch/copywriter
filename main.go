@@ -27,13 +27,13 @@ func genBlogFileName(title string) string {
 }
 
 type Write struct {
-	Outdir string
+	OutDir string
 }
 
 func (*Write) Name() string     { return "write" }
 func (*Write) Synopsis() string { return "Write a post" }
 func (w *Write) SetFlags(f *flag.FlagSet) {
-	f.StringVar(&w.Outdir, "o", ".", "output directory")
+	f.StringVar(&w.OutDir, "o", ".", "output directory")
 }
 
 func (*Write) Usage() string {
@@ -48,7 +48,7 @@ func (w *Write) Execute(ctx context.Context, f *flag.FlagSet, _ ...interface{}) 
 	}()
 
 	config := ctx.Value("conf").(*Config)
-	bw := NewBlogWriter(config, w.Outdir)
+	bw := NewBlogWriter(config, w.OutDir)
 
 	// build title
 	var title string
@@ -58,7 +58,8 @@ func (w *Write) Execute(ctx context.Context, f *flag.FlagSet, _ ...interface{}) 
 
 	// generate the post
 	post := bw.WritePost(title)
-	outFile := w.Outdir + "/" + genBlogFileName(bw.Title)
+	os.MkdirAll(w.OutDir, 0600)
+	outFile := w.OutDir + "/" + genBlogFileName(bw.Title)
 
 	Info("Writing to file '%s'...", outFile)
 	// write to outfile
