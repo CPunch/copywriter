@@ -98,7 +98,7 @@ func (bw *BlogWriter) genImageAboutMeta(prompt string) (string, error) {
 	}
 
 	if bw.config.ImageStylePrompt != "" {
-		query = query + " " + bw.config.ImageStylePrompt
+		query = query + " " + strings.TrimSpace(bw.config.ImageStylePrompt)
 	}
 	return bw.genImage(query)
 }
@@ -136,9 +136,12 @@ func (bw *BlogWriter) genBlogTitle() (string, error) {
 	for i := 0; i < MAX_RETRY; i++ { // just in case gpt is a DUMBASS; i don't wanna burn a million dollars
 		title, err := generateResponse(ResponseOptions{
 			MaxTokens: 40,
-			Prompt:    fmt.Sprintf("%s\nThe following is a list of topics:\n%s\n\nAn example of a short, creative and eye-catching title of a blog post that fits with some of these topics: ", bw.config.CustomPrompt, strings.Join(trends, "\n")),
-			UseGPT4:   false,
-			Clean:     true,
+			Prompt: fmt.Sprintf(
+				"%s\nThe following is a list of topics:\n%s\n\nAn example of a short, creative and eye-catching title of a blog post that fits with some of these topics: ",
+				bw.config.CustomPrompt, strings.Join(trends, "\n"),
+			),
+			UseGPT4: false,
+			Clean:   true,
 		})
 		if err != nil {
 			return "", err
@@ -152,7 +155,7 @@ func (bw *BlogWriter) genBlogTitle() (string, error) {
 		return title, nil
 	}
 
-	return "", fmt.Errorf("Failed to create title!") // this calls os.exit, so the following return is just to fix golang warnings
+	return "", fmt.Errorf("Failed to create title!")
 }
 
 func (bw *BlogWriter) genBlogTags() (string, error) {
@@ -186,9 +189,12 @@ func (bw *BlogWriter) genBlogContent() (string, error) {
 	Info("Generating blog post contents...")
 	markdown, err := generateResponse(ResponseOptions{
 		MaxTokens: 5000,
-		Prompt:    fmt.Sprintf("%s\nThe following is a blog post written in markdown about %s, minimum 1000 words. Use '##' for section headings.\n---\n\n## Introduction\n\n", bw.config.CustomPrompt, bw.Title),
-		UseGPT4:   true,
-		Clean:     false,
+		Prompt: fmt.Sprintf(
+			"%s\nThe following is a blog post written in markdown about %s, minimum 1000 words. Use '##' for section headings.\n---\n\n## Introduction\n\n",
+			bw.config.CustomPrompt, bw.Title,
+		),
+		UseGPT4: true,
+		Clean:   false,
 	})
 	if err != nil {
 		return "", err
@@ -199,7 +205,10 @@ func (bw *BlogWriter) genBlogContent() (string, error) {
 }
 
 func (bw *BlogWriter) genHeaders() string {
-	return fmt.Sprintf("---\ntitle: \"%s\"\nauthor: \"%s\"\ndate: \"%s\"\ntags: %s\nimage: \"%s\"\n---\n\n", bw.Title, bw.Author, getTimeString(), bw.Tags, bw.Thumbnail)
+	return fmt.Sprintf(
+		"---\ntitle: \"%s\"\nauthor: \"%s\"\ndate: \"%s\"\ntags: %s\nimage: \"%s\"\n---\n\n",
+		bw.Title, bw.Author, getTimeString(), bw.Tags, bw.Thumbnail,
+	)
 }
 
 // passing an empty string "" will force us to generate the title using google trends
@@ -242,4 +251,4 @@ func (bw *BlogWriter) WritePost() (string, error) {
 // because I knew he was just feeding her a line, but the guy really
 // spent his money like water! I think he was connected, so I left.
 // Outside it was raining cats and dogs. I was feeling mighty blue,
-// but I carried on!
+// and everything looked black. But I carried on!

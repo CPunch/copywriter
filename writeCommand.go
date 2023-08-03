@@ -50,6 +50,8 @@ func (w *WriteCommand) Execute(ctx context.Context, f *flag.FlagSet, _ ...interf
 		title += arg + " "
 	}
 
+	title = strings.TrimSpace(title)
+
 	// create the blog writer, set the title and output directory
 	bw := NewBlogWriter(config)
 	if err := bw.setTitle(title); err != nil {

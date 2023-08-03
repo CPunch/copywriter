@@ -11,7 +11,11 @@ type ConfigData struct {
 }
 
 func NewConfig(TrendingCategory, CustomPrompt, ImageStylePrompt string) *ConfigData {
-	return &ConfigData{}
+	return &ConfigData{
+		TrendingCategory: TrendingCategory,
+		CustomPrompt:     CustomPrompt,
+		ImageStylePrompt: ImageStylePrompt,
+	}
 }
 
 func (config *ConfigData) LoadConfig(filename string) {

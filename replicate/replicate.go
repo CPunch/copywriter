@@ -25,10 +25,11 @@ func NewClient(apiKey string) *ReplicateClient {
 }
 
 type ReplicatePredictionInput struct {
-	Prompt      string `json:"prompt"`
-	Width       int    `json:"width"`
-	Height      int    `json:"height"`
-	Num_Outputs int    `json:"num_outputs"`
+	Prompt         string `json:"prompt"`
+	NegativePrompt string `json:"negative_prompt"`
+	Width          int    `json:"width"`
+	Height         int    `json:"height"`
+	Num_Outputs    int    `json:"num_outputs"`
 }
 
 type ReplicatePredictionBody struct {
@@ -41,23 +42,28 @@ type ReplicatePredictionResponse struct {
 	ID    string `json:"id"`
 }
 
-// using this model to generate Images: https://replicate.com/stability-ai/stable-diffusion/api
+const (
+	DEFAULT_NEGATIVE_PROMPT = "((((ugly)))), (((duplicate))), ((morbid)), ((mutilated)), [out of frame], extra fingers, mutated hands, ((poorly drawn hands)), ((poorly drawn face)), (((mutation))), (((deformed))), blurry, ((bad anatomy)), (((bad proportions))), ((extra limbs)), cloned face, (((disfigured))), gross proportions, (malformed limbs), ((missing arms)), ((missing legs)), (((extra arms))), (((extra legs))), (fused fingers), (too many fingers), (((long neck)))"
+)
+
+// using this model to generate Images: https://replicate.com/stability-ai/sdxl/api
 func (c *ReplicateClient) sendImagePrompt(prompt string) error {
 	/*
 		curl -s -X POST \
-		-d '{"version": "ac732df83cea7fff18b8472768c88ad041fa750ff7682a21affe81863cbe77e4", "input": {"prompt": "a vision of paradise. unreal engine"}}' \
+		-d '{"version": "2b017d9b67edd2ee1401238df49d75da53c523f36e363881e057f5dc3ed3c5b2", "input": {"prompt": "a vision of paradise. unreal engine"}}' \
 		-H "Authorization: Token $REPLICATE_API_TOKEN" \
 		"https://api.replicate.com/v1/predictions"
 	*/
 
 	// create body
 	body := ReplicatePredictionBody{
-		Version: "ac732df83cea7fff18b8472768c88ad041fa750ff7682a21affe81863cbe77e4",
+		Version: "2b017d9b67edd2ee1401238df49d75da53c523f36e363881e057f5dc3ed3c5b2",
 		Input: ReplicatePredictionInput{
-			Prompt:      prompt,
-			Width:       960,
-			Height:      640,
-			Num_Outputs: 1,
+			Prompt:         prompt,
+			NegativePrompt: DEFAULT_NEGATIVE_PROMPT,
+			Width:          960,
+			Height:         640,
+			Num_Outputs:    1,
 		},
 	}
 
@@ -121,7 +127,7 @@ type ReplicatePredictionStatusResponse struct {
 }
 
 const (
-	MAX_POLL_ATTEMPTS = 20
+	MAX_POLL_ATTEMPTS = 50
 )
 
 // returns url of generated image
