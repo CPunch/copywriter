@@ -4,23 +4,35 @@ import (
 	"encoding/json"
 	"fmt"
 	"strings"
+
+	"git.openpunk.com/CPunch/copywriter/imagescraper"
 )
 
 const (
 	MAX_RETRY = 5
 )
 
-func genImageAboutMeta(prompt string) string {
+type BlogWriter struct {
+	config    *Config
+	outDir    string
+	Title     string
+	Content   string // markdown with injected images
+	Tags      string
+	Author    string
+	Thumbnail string
+}
+
+func (bw *BlogWriter) genImageAboutMeta(prompt string) string {
 	query := generateResponse(ResponseOptions{
 		MaxTokens: 25,
 		Prompt:    fmt.Sprintf("%s\n---\n search query to find a relevant image for the above text: ", prompt),
 		UseGPT4:   false,
 	})
 
-	return getImageUrl(query)
+	return imagescraper.GetImageUrl(query)
 }
 
-func populateImages(content string) string {
+func (bw *BlogWriter) populateImages(content string) string {
 	Info("Scraping for images...")
 	lines := strings.Split(content, "\n")
 
@@ -32,7 +44,7 @@ func populateImages(content string) string {
 	for i := 1; i < len(lines); i++ {
 		if i%5 == 0 {
 			// inject image
-			imgURL := genImageAboutMeta(strings.Join(lines[i-2:i], "\n"))
+			imgURL := bw.genImageAboutMeta(strings.Join(lines[i-2:i], "\n"))
 			img := fmt.Sprintf("\n![](%s)", imgURL)
 
 			// insert line
@@ -41,16 +53,6 @@ func populateImages(content string) string {
 	}
 
 	return strings.Join(lines, "\n")
-}
-
-type BlogWriter struct {
-	config    *Config
-	outDir    string
-	Title     string
-	Content   string // markdown with injected images
-	Tags      string
-	Author    string
-	Thumbnail string
 }
 
 func NewBlogWriter(config *Config, outDir string) *BlogWriter {
@@ -121,7 +123,7 @@ func (bw *BlogWriter) genBlogContent() string {
 	})
 
 	// inject images
-	return populateImages(markdown)
+	return bw.populateImages(markdown)
 }
 
 func (bw *BlogWriter) genHeaders() string {
@@ -142,7 +144,7 @@ func (bw *BlogWriter) WritePost(title string) string {
 	bw.setTitle(title)
 	bw.Content = bw.genBlogContent()
 	bw.Tags = bw.genBlogTags()
-	bw.Thumbnail = genImageAboutMeta(bw.Title)
+	bw.Thumbnail = bw.genImageAboutMeta(bw.Title)
 	bw.Author = "Mason Coleman"
 
 	header := bw.genHeaders()
