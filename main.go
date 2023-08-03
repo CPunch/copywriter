@@ -38,16 +38,10 @@ func (w *Write) SetFlags(f *flag.FlagSet) {
 }
 
 func (*Write) Usage() string {
-	return "write [-o outdir] <title>:\n\tWrite a post. If not title is provided, one will be generated based on previous post titles.\n"
+	return "write [-o outdir] <title>:\n\tWrite a post. If title is not provided, one will be generated based on previous post titles.\n"
 }
 
 func (w *Write) Execute(ctx context.Context, f *flag.FlagSet, _ ...interface{}) subcommands.ExitStatus {
-	defer func() {
-		if e := recover(); e != nil {
-			Fail("%s, %v", e, e.(error).Error())
-		}
-	}()
-
 	config := ctx.Value("conf").(*Config)
 
 	// build title
@@ -58,18 +52,24 @@ func (w *Write) Execute(ctx context.Context, f *flag.FlagSet, _ ...interface{}) 
 
 	// create the blog writer, set the title and output directory
 	bw := NewBlogWriter(config)
-	bw.setTitle(title)
+	if err := bw.setTitle(title); err != nil {
+		Fail("Failed to set title: %v", err)
+	}
 
 	dirPath := path.Join(w.OutDir, genBlogFilePath(bw.Title))
-	os.MkdirAll(dirPath, 0777)
+	if err := os.MkdirAll(dirPath, 0777); err != nil {
+		Fail("Failed to create directory '%s': %v", dirPath, err)
+	}
 	bw.setOutDir(dirPath)
 
 	// generate the post
-	post := bw.WritePost()
+	post, err := bw.WritePost()
+	if err != nil {
+		Fail("Failed to generate post: %v", err)
+	}
 	outFile := path.Join(dirPath, "index.md")
 
 	Info("Writing to file '%s'...", outFile)
-	// write to outfile
 	if err := os.WriteFile(outFile, []byte(post), 0644); err != nil {
 		Fail("Failed to write to file '%s': %v", outFile, err)
 	}

@@ -86,7 +86,7 @@ type ResponseOptions struct {
 	Clean bool
 }
 
-func generateResponse(args ResponseOptions) string {
+func generateResponse(args ResponseOptions) (string, error) {
 	var model string
 	if args.UseGPT4 {
 		model = openai.GPT4
@@ -134,8 +134,8 @@ func generateResponse(args ResponseOptions) string {
 			text = strings.TrimSpace(text)
 		}
 
-		return text
+		return text, nil
 	}
 
-	panic(fmt.Sprintf("ChatCompletion error: %v\n", err))
+	return "", fmt.Errorf("ChatCompletion error: %v\n", err)
 }
