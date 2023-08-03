@@ -3,7 +3,10 @@ package main
 import (
 	"context"
 	"fmt"
+	"io"
+	"net/http"
 	"os"
+	"strings"
 	"time"
 
 	openai "github.com/sashabaranov/go-openai"
@@ -19,6 +22,49 @@ func getEnv(key string, fallback string) string {
 		return fallback
 	}
 	return value
+}
+
+func downloadToFile(url string, filename string, headers []string) error {
+	req, err := http.NewRequest("GET", url, nil)
+	if err != nil {
+		return err
+	}
+
+	// add headers
+	for _, header := range headers {
+		parts := strings.Split(header, ":")
+		if len(parts) != 2 {
+			return fmt.Errorf("Invalid header: %s", header)
+		}
+
+		req.Header.Add(parts[0], parts[1])
+	}
+
+	// make the request
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	// check status code
+	if resp.StatusCode != 200 {
+		return fmt.Errorf("Bad status code: %d", resp.StatusCode)
+	}
+
+	// write response body to file
+	f, err := os.Create(filename)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+
+	_, err = io.Copy(f, resp.Body)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func getTimeString() string {

@@ -4,13 +4,14 @@ import (
 	"context"
 	"flag"
 	"os"
+	"path"
 	"strings"
 	"unicode"
 
 	"github.com/google/subcommands"
 )
 
-func genBlogFileName(title string) string {
+func genBlogFilePath(title string) string {
 	// strip any non-alphanumeric characters
 	title = strings.Map(func(r rune) rune {
 		if unicode.IsLetter(r) || unicode.IsNumber(r) || unicode.IsSpace(r) {
@@ -23,7 +24,7 @@ func genBlogFileName(title string) string {
 	title = strings.ReplaceAll(title, " ", "-")
 	title = strings.ToLower(title)
 
-	return title + ".md"
+	return title
 }
 
 type Write struct {
@@ -48,7 +49,6 @@ func (w *Write) Execute(ctx context.Context, f *flag.FlagSet, _ ...interface{}) 
 	}()
 
 	config := ctx.Value("conf").(*Config)
-	bw := NewBlogWriter(config, w.OutDir)
 
 	// build title
 	var title string
@@ -56,10 +56,17 @@ func (w *Write) Execute(ctx context.Context, f *flag.FlagSet, _ ...interface{}) 
 		title += arg + " "
 	}
 
+	// create the blog writer, set the title and output directory
+	bw := NewBlogWriter(config)
+	bw.setTitle(title)
+
+	dirPath := path.Join(w.OutDir, genBlogFilePath(bw.Title))
+	os.MkdirAll(dirPath, 0777)
+	bw.setOutDir(dirPath)
+
 	// generate the post
-	post := bw.WritePost(title)
-	os.MkdirAll(w.OutDir, 0600)
-	outFile := w.OutDir + "/" + genBlogFileName(bw.Title)
+	post := bw.WritePost()
+	outFile := path.Join(dirPath, "index.md")
 
 	Info("Writing to file '%s'...", outFile)
 	// write to outfile

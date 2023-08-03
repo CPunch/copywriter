@@ -5,7 +5,6 @@ import (
 	"math/rand"
 	"net/http"
 	"strings"
-	"unicode"
 
 	"github.com/gocolly/colly"
 )
@@ -69,16 +68,7 @@ func validateURL(url string) bool {
 func doImageSearch(searchQuery string) []string {
 	scrapedImages := []string{}
 
-	searchQuery = strings.Map(func(r rune) rune {
-		if unicode.IsLetter(r) || unicode.IsNumber(r) || unicode.IsSpace(r) {
-			return r
-		}
-		return -1
-	}, searchQuery)
-
 	// make our search query url friendly
-	searchQuery = strings.Split(searchQuery, "\n")[0]
-	searchQuery = strings.TrimSpace(searchQuery)
 	searchString := strings.Replace(searchQuery, " ", "-", -1)
 
 	c := colly.NewCollector()

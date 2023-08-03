@@ -3,23 +3,88 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"path"
 	"strings"
+	"unicode"
 
 	"git.openpunk.com/CPunch/copywriter/imagescraper"
+	"git.openpunk.com/CPunch/copywriter/replicate"
 )
 
 const (
-	MAX_RETRY = 5
+	MAX_RETRY       = 5
+	IMAGE_FREQUENCY = 10
 )
 
 type BlogWriter struct {
-	config    *Config
-	outDir    string
-	Title     string
-	Content   string // markdown with injected images
-	Tags      string
-	Author    string
-	Thumbnail string
+	config     *Config
+	outDir     string
+	imageCount int
+	maxImages  int
+	Title      string
+	Content    string // markdown with injected images
+	Tags       string
+	Author     string
+	Thumbnail  string
+}
+
+func NewBlogWriter(config *Config) *BlogWriter {
+	return &BlogWriter{
+		config:     config,
+		imageCount: 0,
+	}
+}
+
+func (bw *BlogWriter) setOutDir(outDir string) {
+	bw.outDir = outDir
+}
+
+func (bw *BlogWriter) genImage(query string) string {
+	query = strings.Map(func(r rune) rune {
+		if unicode.IsLetter(r) || unicode.IsNumber(r) || unicode.IsSpace(r) {
+			return r
+		}
+		return -1
+	}, query)
+
+	query = strings.Split(query, "\n")[0]
+	query = strings.TrimSpace(query)
+
+	Info("Generating image for query '%s'...", query)
+
+	// check if REPLICATE_API_KEY is in our environment, if it's not we'll fallback to our image scraper
+	var url string
+	var headers []string
+	if token := getEnv("REPLICATE_API_KEY", ""); token != "" {
+		Info("Using replicate.ai to generate image...")
+
+		rc := replicate.NewClient(token)
+
+		var err error
+		url, err = rc.MakePrediction(query)
+		if err != nil {
+			Fail("Failed to generate image: %v", err)
+			return ""
+		}
+
+		headers = []string{"Authorization:Token " + token}
+	} else {
+		Info("Using image scraper to grab our image...")
+
+		url = imagescraper.GetImageUrl(query)
+		headers = []string{"User-Agent:Mozilla/5.0 (iPhone; CPU iPhone OS 16_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.5 Mobile/15E148 Safari/604.1"}
+	}
+
+	// download image
+	bw.imageCount++
+	fileName := fmt.Sprintf("image_%d.jpg", bw.imageCount)
+
+	fmt.Printf("Downloading image to '%s'...\n", path.Join(bw.outDir, fileName))
+	if err := downloadToFile(url, path.Join(bw.outDir, fileName), headers); err != nil {
+		Fail("Failed to download image: %v", err)
+		return ""
+	}
+	return fileName
 }
 
 func (bw *BlogWriter) genImageAboutMeta(prompt string) string {
@@ -29,11 +94,11 @@ func (bw *BlogWriter) genImageAboutMeta(prompt string) string {
 		UseGPT4:   false,
 	})
 
-	return imagescraper.GetImageUrl(query)
+	return bw.genImage(query)
 }
 
 func (bw *BlogWriter) populateImages(content string) string {
-	Info("Scraping for images...")
+	Info("Populating images...")
 	lines := strings.Split(content, "\n")
 
 	// strip lines
@@ -42,7 +107,7 @@ func (bw *BlogWriter) populateImages(content string) string {
 	}
 
 	for i := 1; i < len(lines); i++ {
-		if i%5 == 0 {
+		if i%IMAGE_FREQUENCY == 0 {
 			// inject image
 			imgURL := bw.genImageAboutMeta(strings.Join(lines[i-2:i], "\n"))
 			img := fmt.Sprintf("\n![](%s)", imgURL)
@@ -53,13 +118,6 @@ func (bw *BlogWriter) populateImages(content string) string {
 	}
 
 	return strings.Join(lines, "\n")
-}
-
-func NewBlogWriter(config *Config, outDir string) *BlogWriter {
-	return &BlogWriter{
-		config: config,
-		outDir: outDir,
-	}
 }
 
 func (bw *BlogWriter) genBlogTitle() string {
@@ -83,7 +141,7 @@ func (bw *BlogWriter) genBlogTitle() string {
 			continue
 		}
 
-		return titleList[0]
+		return strings.TrimSpace(titleList[0])
 	}
 
 	Fail("Failed to create title!") // this calls os.exit, so the following return is just to fix golang warnings
@@ -140,11 +198,10 @@ func (bw *BlogWriter) setTitle(title string) {
 	bw.Title = title
 }
 
-func (bw *BlogWriter) WritePost(title string) string {
-	bw.setTitle(title)
+func (bw *BlogWriter) WritePost() string {
+	bw.Thumbnail = bw.genImageAboutMeta(bw.Title)
 	bw.Content = bw.genBlogContent()
 	bw.Tags = bw.genBlogTags()
-	bw.Thumbnail = bw.genImageAboutMeta(bw.Title)
 	bw.Author = "Mason Coleman"
 
 	header := bw.genHeaders()
