@@ -50,6 +50,10 @@ func (bw *BlogWriter) getNextFile() (fileName, filePath string) {
 // returns the filename of the downloaded image
 // in the outDir
 func (bw *BlogWriter) genImage(query string) (string, error) {
+	if bw.config.ImageStylePrompt != "" {
+		query = query + " " + strings.TrimSpace(bw.config.ImageStylePrompt)
+	}
+
 	Info("Generating image for query '%s'...", query)
 
 	fileName, filePath := bw.getNextFile()
@@ -86,43 +90,43 @@ func (bw *BlogWriter) genImage(query string) (string, error) {
 	return fileName, nil
 }
 
-func (bw *BlogWriter) genImageAboutMeta(prompt string) (string, error) {
-	query, err := generateResponse(ResponseOptions{
-		MaxTokens: 25,
-		Prompt:    fmt.Sprintf("%s\n---\nsearch query to for a relevant image for the above text: ", prompt),
-		UseGPT4:   false,
+func (bw *BlogWriter) genImageAboutMeta(prompt string) (img string, query string, err error) {
+	query, err = generateResponse(ResponseOptions{
+		MaxTokens: 30,
+		Prompt:    fmt.Sprintf("%s\n---\nWrite a short one sentence prompt for an image that fits the above text: Image of ", prompt),
+		UseGPT4:   true,
 		Clean:     true,
 	})
 	if err != nil {
-		return "", fmt.Errorf("Failed to generate image: %v", err)
+		return "", "", fmt.Errorf("Failed to generate image: %v", err)
 	}
 
-	if bw.config.ImageStylePrompt != "" {
-		query = query + " " + strings.TrimSpace(bw.config.ImageStylePrompt)
-	}
-	return bw.genImage(query)
+	img, err = bw.genImage(query)
+	return
 }
 
 func (bw *BlogWriter) populateImages(content string) (string, error) {
 	Info("Populating images...")
 	lines := strings.Split(content, "\n")
 
-	// strip lines
-	for i := range lines {
-		lines[i] = strings.TrimSpace(lines[i])
-	}
-
-	for i := 1; i < len(lines); i++ {
-		if i%IMAGE_FREQUENCY == 0 {
+	// look for '![]('
+	for i := 0; i < len(lines); i++ {
+		if strings.Contains(lines[i], "![](") {
+			imgPrompt := strings.ReplaceAll(lines[i], "![](", "")
+			imgPrompt = strings.ReplaceAll(imgPrompt, ")", "")
 			// inject image
-			imgURL, err := bw.genImageAboutMeta(strings.Join(lines[i-2:i], "\n"))
+			imgURL, err := bw.genImage(imgPrompt)
 			if err != nil {
 				return "", fmt.Errorf("Failed to generate image: %v", err)
 			}
-			img := fmt.Sprintf("\n![](%s)", imgURL)
 
-			// insert line
-			lines = append(lines[:i], append([]string{img}, lines[i:]...)...)
+			lines[i] = fmt.Sprintf("\n![](%s)", imgURL)
+		}
+
+		// gpt sometimes writes this at the end of the content, so just remove everything after
+		if lines[i] == "---" {
+			lines = lines[:i]
+			break
 		}
 	}
 
@@ -137,7 +141,7 @@ func (bw *BlogWriter) genBlogTitle() (string, error) {
 		title, err := generateResponse(ResponseOptions{
 			MaxTokens: 40,
 			Prompt: fmt.Sprintf(
-				"%s\nThe following is a list of topics:\n%s\n\nAn example of a short, creative and eye-catching title of a blog post that fits with some of these topics: ",
+				"%s\nThe following is a list of topics:\n%s\n\nAn example of a short, simple and eye-catching title of an article that fits with some of these topics: ",
 				bw.config.CustomPrompt, strings.Join(trends, "\n"),
 			),
 			UseGPT4: false,
@@ -186,12 +190,19 @@ func (bw *BlogWriter) genBlogTags() (string, error) {
 }
 
 func (bw *BlogWriter) genBlogContent() (string, error) {
+	var err error
+	var thumbnailQuery string
+	bw.Thumbnail, thumbnailQuery, err = bw.genImageAboutMeta(bw.Title)
+	if err != nil {
+		return "", fmt.Errorf("Failed to generate thumbnail: %v", err)
+	}
+
 	Info("Generating blog post contents...")
 	markdown, err := generateResponse(ResponseOptions{
 		MaxTokens: 5000,
 		Prompt: fmt.Sprintf(
-			"%s\nThe following is a blog post written in markdown about %s, minimum 1000 words. Use '##' for section headings.\n---\n\n## Introduction\n\n",
-			bw.config.CustomPrompt, bw.Title,
+			"%s\nThe following is a 1000 word article written in markdown. Use '##' for section headings. Mark where you would insert an image using '![](<DESCRIPTION OF IMAGE>)'\n---\n\n## %s\n\n![](%s)\n\n",
+			bw.config.CustomPrompt, bw.Title, thumbnailQuery,
 		),
 		UseGPT4: true,
 		Clean:   false,
@@ -206,7 +217,7 @@ func (bw *BlogWriter) genBlogContent() (string, error) {
 
 func (bw *BlogWriter) genHeaders() string {
 	return fmt.Sprintf(
-		"---\ntitle: \"%s\"\nauthor: \"%s\"\ndate: \"%s\"\ntags: %s\nimage: \"%s\"\n---\n\n",
+		"---\ntitle: \"%s\"\nauthor: \"%s\"\ndate: \"%s\"\ntags: %s\nimage: \"%s\"\n---\n",
 		bw.Title, bw.Author, getTimeString(), bw.Tags, bw.Thumbnail,
 	)
 }
@@ -224,11 +235,6 @@ func (bw *BlogWriter) setTitle(title string) (err error) {
 
 func (bw *BlogWriter) WritePost() (string, error) {
 	var err error
-	bw.Thumbnail, err = bw.genImageAboutMeta(bw.Title)
-	if err != nil {
-		return "", fmt.Errorf("Failed to generate thumbnail: %v", err)
-	}
-
 	bw.Content, err = bw.genBlogContent()
 	if err != nil {
 		return "", fmt.Errorf("Failed to generate blog content: %v", err)
