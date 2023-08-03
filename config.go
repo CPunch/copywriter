@@ -4,24 +4,26 @@ import (
 	"github.com/go-ini/ini"
 )
 
-type Config struct {
-	TrendingCategory string `ini:"trending_category"`
-	CustomPrompt     string `ini:"custom_prompt"`
-	ImageStylePrompt string `ini:"image_style_prompt"`
+type ConfigData struct {
+	TrendingCategory string `ini:"trend"`
+	CustomPrompt     string `ini:"custom"`
+	ImageStylePrompt string `ini:"image"`
 }
 
-func LoadConfig(filename string) *Config {
+func NewConfig(TrendingCategory, CustomPrompt, ImageStylePrompt string) *ConfigData {
+	return &ConfigData{}
+}
+
+func (config *ConfigData) LoadConfig(filename string) {
 	Info("Loading config file '%s'...", filename)
 	cfg, err := ini.Load(filename)
 	if err != nil {
-		Fail("Failed to load config file: %v", err)
+		Warning("Failed to load config file: %v", err)
+		return
 	}
 
-	var config Config
 	err = cfg.MapTo(&config)
 	if err != nil {
 		Fail("Failed to map config file: %v", err)
 	}
-
-	return &config
 }

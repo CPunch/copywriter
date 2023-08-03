@@ -17,7 +17,7 @@ const (
 )
 
 type BlogWriter struct {
-	config     *Config
+	config     *ConfigData
 	outDir     string
 	imageCount int
 	maxImages  int
@@ -28,7 +28,7 @@ type BlogWriter struct {
 	Thumbnail  string
 }
 
-func NewBlogWriter(config *Config) *BlogWriter {
+func NewBlogWriter(config *ConfigData) *BlogWriter {
 	return &BlogWriter{
 		config:     config,
 		imageCount: 0,
@@ -136,7 +136,7 @@ func (bw *BlogWriter) genBlogTitle() (string, error) {
 	for i := 0; i < MAX_RETRY; i++ { // just in case gpt is a DUMBASS; i don't wanna burn a million dollars
 		title, err := generateResponse(ResponseOptions{
 			MaxTokens: 40,
-			Prompt:    fmt.Sprintf("%s\nThe following is a list of topics:\n%s\n\nAn example of a short, creative and eye-catching title of a blog post that matches these topics: ", bw.config.CustomPrompt, strings.Join(trends, "\n")),
+			Prompt:    fmt.Sprintf("%s\nThe following is a list of topics:\n%s\n\nAn example of a short, creative and eye-catching title of a blog post that fits with some of these topics: ", bw.config.CustomPrompt, strings.Join(trends, "\n")),
 			UseGPT4:   false,
 			Clean:     true,
 		})
