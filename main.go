@@ -44,7 +44,7 @@ func (*Write) Usage() string {
 func (w *Write) Execute(ctx context.Context, f *flag.FlagSet, _ ...interface{}) subcommands.ExitStatus {
 	defer func() {
 		if e := recover(); e != nil {
-			Fail("%s", e)
+			Fail("%s, %v", e, e.(error).Error())
 		}
 	}()
 

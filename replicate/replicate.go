@@ -11,12 +11,17 @@ import (
 type ReplicateClient struct {
 	APIKey string
 	ID     string
+	Header http.Header
 }
 
 func NewClient(apiKey string) *ReplicateClient {
-	return &ReplicateClient{
+	c := &ReplicateClient{
 		APIKey: apiKey,
+		Header: make(http.Header),
 	}
+
+	c.Header.Set("Authorization", "Token "+apiKey)
+	return c
 }
 
 type ReplicatePredictionInput struct {
@@ -68,7 +73,7 @@ func (c *ReplicateClient) sendImagePrompt(prompt string) error {
 		return err
 	}
 
-	req.Header.Set("Authorization", "Token "+c.APIKey)
+	req.Header = c.Header
 	req.Header.Set("Content-Type", "application/json")
 
 	// make request
@@ -128,7 +133,7 @@ func (c *ReplicateClient) waitForPredictionFinished() (string, error) {
 		return "", err
 	}
 
-	req.Header.Set("Authorization", "Token "+c.APIKey)
+	req.Header = c.Header
 
 	for i := 0; i < MAX_POLL_ATTEMPTS; i++ {
 		// make request

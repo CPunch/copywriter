@@ -7,6 +7,7 @@ import (
 type Config struct {
 	TrendingCategory string `ini:"trending_category"`
 	CustomPrompt     string `ini:"custom_prompt"`
+	ImageStylePrompt string `ini:"image_style_prompt"`
 }
 
 func LoadConfig(filename string) *Config {

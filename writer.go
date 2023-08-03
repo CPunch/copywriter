@@ -3,9 +3,9 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"net/http"
 	"path"
 	"strings"
-	"unicode"
 
 	"git.openpunk.com/CPunch/copywriter/imagescraper"
 	"git.openpunk.com/CPunch/copywriter/replicate"
@@ -13,7 +13,7 @@ import (
 
 const (
 	MAX_RETRY       = 5
-	IMAGE_FREQUENCY = 10
+	IMAGE_FREQUENCY = 15
 )
 
 type BlogWriter struct {
@@ -39,26 +39,28 @@ func (bw *BlogWriter) setOutDir(outDir string) {
 	bw.outDir = outDir
 }
 
+func (bw *BlogWriter) getNextFile() (fileName, filePath string) {
+	bw.imageCount++
+	fileName = fmt.Sprintf("file_%d.jpg", bw.imageCount)
+	filePath = path.Join(bw.outDir, fileName)
+	return
+}
+
+// generate or scrapes the web for the query.
+// returns the filename of the downloaded image
+// in the outDir
 func (bw *BlogWriter) genImage(query string) string {
-	query = strings.Map(func(r rune) rune {
-		if unicode.IsLetter(r) || unicode.IsNumber(r) || unicode.IsSpace(r) {
-			return r
-		}
-		return -1
-	}, query)
-
-	query = strings.Split(query, "\n")[0]
-	query = strings.TrimSpace(query)
-
 	Info("Generating image for query '%s'...", query)
 
-	// check if REPLICATE_API_KEY is in our environment, if it's not we'll fallback to our image scraper
+	fileName, filePath := bw.getNextFile()
+	header := make(http.Header)
 	var url string
-	var headers []string
+	// check if REPLICATE_API_KEY is in our environment, if it's not we'll fallback to our image scraper
 	if token := getEnv("REPLICATE_API_KEY", ""); token != "" {
 		Info("Using replicate.ai to generate image...")
 
 		rc := replicate.NewClient(token)
+		header = rc.Header
 
 		var err error
 		url, err = rc.MakePrediction(query)
@@ -66,21 +68,19 @@ func (bw *BlogWriter) genImage(query string) string {
 			Fail("Failed to generate image: %v", err)
 			return ""
 		}
-
-		headers = []string{"Authorization:Token " + token}
 	} else {
 		Info("Using image scraper to grab our image...")
 
 		url = imagescraper.GetImageUrl(query)
-		headers = []string{"User-Agent:Mozilla/5.0 (iPhone; CPU iPhone OS 16_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.5 Mobile/15E148 Safari/604.1"}
+		header.Set("User-Agent", imagescraper.USER_AGENT)
 	}
 
 	// download image
-	bw.imageCount++
-	fileName := fmt.Sprintf("image_%d.jpg", bw.imageCount)
-
-	fmt.Printf("Downloading image to '%s'...\n", path.Join(bw.outDir, fileName))
-	if err := downloadToFile(url, path.Join(bw.outDir, fileName), headers); err != nil {
+	if err := downloadToFile(DownloadOptions{
+		URL:      url,
+		FilePath: filePath,
+		Header:   header,
+	}); err != nil {
 		Fail("Failed to download image: %v", err)
 		return ""
 	}
@@ -90,10 +90,14 @@ func (bw *BlogWriter) genImage(query string) string {
 func (bw *BlogWriter) genImageAboutMeta(prompt string) string {
 	query := generateResponse(ResponseOptions{
 		MaxTokens: 25,
-		Prompt:    fmt.Sprintf("%s\n---\n search query to find a relevant image for the above text: ", prompt),
+		Prompt:    fmt.Sprintf("%s\n---\nsearch query to for a relevant image for the above text: ", prompt),
 		UseGPT4:   false,
+		Clean:     true,
 	})
 
+	if bw.config.ImageStylePrompt != "" {
+		query = query + " " + bw.config.ImageStylePrompt
+	}
 	return bw.genImage(query)
 }
 
@@ -176,8 +180,9 @@ func (bw *BlogWriter) genBlogContent() string {
 	Info("Generating blog post contents...")
 	markdown := generateResponse(ResponseOptions{
 		MaxTokens: 5000,
-		Prompt:    fmt.Sprintf("%s\nThe following is a blog post written in markdown about %s, minimum 1000 words. Use '##' for section headings. *DO NOT INCLUDE THE TITLE*:\n", bw.config.CustomPrompt, bw.Title),
+		Prompt:    fmt.Sprintf("%s\nThe following is a blog post written in markdown about %s, minimum 1000 words. Use '##' for section headings.\n---\n\n## Introduction\n\n", bw.config.CustomPrompt, bw.Title),
 		UseGPT4:   true,
+		Clean:     false,
 	})
 
 	// inject images
@@ -210,3 +215,9 @@ func (bw *BlogWriter) WritePost() string {
 	Success("Generated post!")
 	return fullPost
 }
+
+// That mary was goin' around with an old flame. That burned me up,
+// because I knew he was just feeding her a line, but the guy really
+// spent his money like water! I think he was connected, so I left.
+// Outside it was raining cats and dogs. I was feeling mighty blue,
+// but I carried on!

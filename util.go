@@ -8,6 +8,7 @@ import (
 	"os"
 	"strings"
 	"time"
+	"unicode"
 
 	openai "github.com/sashabaranov/go-openai"
 )
@@ -24,21 +25,22 @@ func getEnv(key string, fallback string) string {
 	return value
 }
 
-func downloadToFile(url string, filename string, headers []string) error {
-	req, err := http.NewRequest("GET", url, nil)
+type DownloadOptions struct {
+	URL      string
+	FilePath string
+	Header   http.Header
+}
+
+func downloadToFile(args DownloadOptions) error {
+	Info("Downloading %s to '%s'...", args.URL, args.FilePath)
+
+	req, err := http.NewRequest("GET", args.URL, nil)
 	if err != nil {
 		return err
 	}
 
 	// add headers
-	for _, header := range headers {
-		parts := strings.Split(header, ":")
-		if len(parts) != 2 {
-			return fmt.Errorf("Invalid header: %s", header)
-		}
-
-		req.Header.Add(parts[0], parts[1])
-	}
+	req.Header = args.Header
 
 	// make the request
 	resp, err := http.DefaultClient.Do(req)
@@ -53,7 +55,7 @@ func downloadToFile(url string, filename string, headers []string) error {
 	}
 
 	// write response body to file
-	f, err := os.Create(filename)
+	f, err := os.Create(args.FilePath)
 	if err != nil {
 		return err
 	}
@@ -76,11 +78,17 @@ type ResponseOptions struct {
 	MaxTokens int
 	Prompt    string
 	UseGPT4   bool
+	/*
+		Clean: removes any non alphanumeric characters, and trims
+		whitespace. first \n is marked as EOF, so it will only return
+		the first line
+	*/
+	Clean bool
 }
 
-func generateResponse(options ResponseOptions) string {
+func generateResponse(args ResponseOptions) string {
 	var model string
-	if options.UseGPT4 {
+	if args.UseGPT4 {
 		model = openai.GPT4
 	} else {
 		model = openai.GPT3Dot5Turbo
@@ -95,12 +103,12 @@ func generateResponse(options ResponseOptions) string {
 			context.Background(),
 			openai.ChatCompletionRequest{
 				Model:       model,
-				MaxTokens:   options.MaxTokens,
+				MaxTokens:   args.MaxTokens,
 				Temperature: 1,
 				Messages: []openai.ChatCompletionMessage{
 					{
 						Role:    openai.ChatMessageRoleSystem,
-						Content: options.Prompt,
+						Content: args.Prompt,
 					},
 				},
 			},
@@ -108,11 +116,25 @@ func generateResponse(options ResponseOptions) string {
 
 		if err != nil {
 			// try again but sleep for a bit
-			time.Sleep(1 * time.Second)
+			time.Sleep(2 * time.Second)
 			continue
 		}
 
-		return resp.Choices[0].Message.Content
+		// clean up text
+		text := resp.Choices[0].Message.Content
+		if args.Clean {
+			text = strings.Map(func(r rune) rune {
+				if unicode.IsLetter(r) || unicode.IsNumber(r) || unicode.IsSpace(r) {
+					return r
+				}
+				return -1
+			}, text)
+
+			text = strings.Split(text, "\n")[0]
+			text = strings.TrimSpace(text)
+		}
+
+		return text
 	}
 
 	panic(fmt.Sprintf("ChatCompletion error: %v\n", err))
