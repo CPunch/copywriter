@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/groovili/gogtrends"
 )
@@ -16,7 +17,7 @@ func getPopularTrends(category string) []string {
 
 	var trends []string
 	for _, trend := range stories {
-		trends = append(trends, trend.Title)
+		trends = append(trends, fmt.Sprintf("%s - %s", trend.Articles[0].Title, trend.Articles[0].Snippet))
 	}
 
 	if len(trends) > 5 {

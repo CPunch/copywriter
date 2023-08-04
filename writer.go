@@ -137,29 +137,25 @@ func (bw *BlogWriter) genBlogTitle() (string, error) {
 	Info("Generating blog title...")
 	trends := getPopularTrends(bw.config.TrendingCategory)
 
-	for i := 0; i < MAX_RETRY; i++ { // just in case gpt is a DUMBASS; i don't wanna burn a million dollars
-		title, err := generateResponse(ResponseOptions{
-			MaxTokens: 40,
-			Prompt: fmt.Sprintf(
-				"%s\nThe following is a list of topics:\n%s\n\nAn example of a short, simple and eye-catching title of an article that fits with some of these topics: ",
-				bw.config.CustomPrompt, strings.Join(trends, "\n"),
-			),
-			UseGPT4: false,
-			Clean:   true,
-		})
-		if err != nil {
-			return "", err
-		}
-
-		// no titles?? try again
-		if len(title) == 0 {
-			continue
-		}
-
-		return title, nil
+	title, err := generateResponse(ResponseOptions{
+		MaxTokens: 40,
+		Prompt: fmt.Sprintf(
+			"%s\nThe following is a list of topics:\n%s\n\nAn example of a short, simple and eye-catching title of an article that fits with some of these topics: ",
+			bw.config.CustomPrompt, strings.Join(trends, "\n"),
+		),
+		UseGPT4: false,
+		Clean:   true,
+	})
+	if err != nil {
+		return "", err
 	}
 
-	return "", fmt.Errorf("Failed to create title!")
+	// no title?
+	if len(title) == 0 {
+		return "", fmt.Errorf("Failed to create title!")
+	}
+
+	return title, nil
 }
 
 func (bw *BlogWriter) genBlogTags() (string, error) {
