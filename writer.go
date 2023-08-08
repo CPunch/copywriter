@@ -9,6 +9,8 @@ import (
 
 	"git.openpunk.com/CPunch/copywriter/imagescraper"
 	"git.openpunk.com/CPunch/copywriter/replicate"
+	"git.openpunk.com/CPunch/copywriter/trendscraper"
+	"git.openpunk.com/CPunch/copywriter/util"
 )
 
 const (
@@ -57,14 +59,14 @@ func (bw *BlogWriter) genImage(query string) (string, error) {
 		query = query + " " + strings.TrimSpace(bw.config.ImageStylePrompt)
 	}
 
-	Info("Generating image for query '%s'...", query)
+	util.Info("Generating image for query '%s'...", query)
 
 	fileName, filePath := bw.getNextFile()
 	header := make(http.Header)
 	var url string
 	// check if REPLICATE_API_KEY is in our environment, if it's not we'll fallback to our image scraper
-	if token := getEnv("REPLICATE_API_KEY", ""); token != "" {
-		Info("Using replicate.ai to generate image...")
+	if token := util.GetEnv("REPLICATE_API_KEY", ""); token != "" {
+		util.Info("Using replicate.ai to generate image...")
 
 		rc := replicate.NewClient(token)
 		header = rc.Header
@@ -75,14 +77,14 @@ func (bw *BlogWriter) genImage(query string) (string, error) {
 			return "", fmt.Errorf("Failed to generate image: %v", err)
 		}
 	} else {
-		Info("Using image scraper to grab an image...")
+		util.Info("Using image scraper to grab an image...")
 
 		url = imagescraper.GetImageUrl(query)
-		header.Set("User-Agent", imagescraper.USER_AGENT)
+		header.Set("User-Agent", util.USER_AGENT)
 	}
 
 	// download image
-	if err := downloadToFile(DownloadOptions{
+	if err := util.DownloadToFile(util.DownloadOptions{
 		URL:      url,
 		FilePath: filePath,
 		Header:   header,
@@ -94,7 +96,7 @@ func (bw *BlogWriter) genImage(query string) (string, error) {
 }
 
 func (bw *BlogWriter) genImageAboutMeta(prompt string) (img string, query string, err error) {
-	query, err = generateResponse(ResponseOptions{
+	query, err = util.GenerateResponse(util.ResponseOptions{
 		MaxTokens: 30,
 		Prompt:    fmt.Sprintf("%s\n---\nWrite a short one sentence prompt for an image that fits the above text: Image of ", prompt),
 		UseGPT4:   true,
@@ -109,7 +111,7 @@ func (bw *BlogWriter) genImageAboutMeta(prompt string) (img string, query string
 }
 
 func (bw *BlogWriter) populateImages(content string) (string, error) {
-	Info("Populating images...")
+	util.Info("Populating images...")
 	lines := strings.Split(content, "\n")
 
 	// look for '![]('
@@ -137,9 +139,9 @@ func (bw *BlogWriter) populateImages(content string) (string, error) {
 }
 
 func (bw *BlogWriter) genBlogTitle() (string, error) {
-	Info("Generating blog title...")
+	util.Info("Generating blog title...")
 
-	title, err := generateResponse(ResponseOptions{
+	title, err := util.GenerateResponse(util.ResponseOptions{
 		MaxTokens: 40,
 		Prompt: fmt.Sprintf(
 			"Write a short, simple and eye-catching title of an article that readers of the following text would be interested in:\n\n%s\nThe following is a list of articles the reader is interested in:\n\n%s\n\nTitle: ",
@@ -161,9 +163,9 @@ func (bw *BlogWriter) genBlogTitle() (string, error) {
 }
 
 func (bw *BlogWriter) genBlogTags() (string, error) {
-	Info("Generating tags...")
+	util.Info("Generating tags...")
 	for i := 0; i < MAX_RETRY; i++ { // just in case gpt is a DUMBASS; i don't wanna burn a million dollars
-		tagString, err := generateResponse(ResponseOptions{
+		tagString, err := util.GenerateResponse(util.ResponseOptions{
 			MaxTokens: 50,
 			Prompt:    fmt.Sprintf("%s\n\nTags as a json array with only 1 word each, max 5:\n", bw.Content),
 			UseGPT4:   false,
@@ -183,7 +185,7 @@ func (bw *BlogWriter) genBlogTags() (string, error) {
 		return tagString, nil
 	}
 
-	Warning("GPT failed to generate any valid tags")
+	util.Warning("GPT failed to generate any valid tags")
 	return "[]", nil
 }
 
@@ -195,8 +197,8 @@ func (bw *BlogWriter) genBlogContent() (string, error) {
 		return "", fmt.Errorf("Failed to generate thumbnail: %v", err)
 	}
 
-	Info("Generating blog post contents...")
-	markdown, err := generateResponse(ResponseOptions{
+	util.Info("Generating blog post contents...")
+	markdown, err := util.GenerateResponse(util.ResponseOptions{
 		MaxTokens: 5000,
 		Prompt: fmt.Sprintf(
 			"%s\n%s\nWrite an interesting and informative 1000 word article that readers would find relevant written in markdown. Use '##' for section headings. Mark where you would insert an image using '![](<DESCRIPTION OF IMAGE>)'.\n---\n\n## %s\n\n![](%s)\n",
@@ -216,17 +218,17 @@ func (bw *BlogWriter) genBlogContent() (string, error) {
 func (bw *BlogWriter) genHeaders() string {
 	return fmt.Sprintf(
 		"---\ntitle: \"%s\"\nauthor: \"%s\"\ndate: \"%s\"\ntags: %s\nimage: \"%s\"\n---\n",
-		bw.Title, bw.Author, getTimeString(), bw.Tags, bw.Thumbnail,
+		bw.Title, bw.Author, util.GetTimeString(), bw.Tags, bw.Thumbnail,
 	)
 }
 
 func (bw *BlogWriter) genTopicCtx() (err error) {
 	if bw.config.TopicType == TOPIC_TYPE_NEWS {
-		bw.TitleCtx, bw.ArticleCtx, err = scrapeRealtimeNews(bw.config.TrendingCategory)
+		bw.TitleCtx, bw.ArticleCtx, err = trendscraper.ScrapeRealtimeNews(bw.config.TrendingCategory)
 		return
 	}
 
-	bw.TitleCtx, bw.ArticleCtx, err = scrapePopularTrends(bw.config.TrendingCategory)
+	bw.TitleCtx, bw.ArticleCtx, err = trendscraper.ScrapePopularTrends(bw.config.TrendingCategory)
 	return
 }
 
@@ -244,7 +246,7 @@ func (bw *BlogWriter) setTitle(title string) (err error) {
 		}
 	}
 
-	Info("Title: '%s'...", title)
+	util.Info("Title: '%s'...", title)
 	bw.Title = title
 	return
 }
@@ -265,7 +267,7 @@ func (bw *BlogWriter) WritePost() (string, error) {
 	header := bw.genHeaders()
 	fullPost := fmt.Sprintf("%s\n%s", header, bw.Content)
 
-	Success("Generated post!")
+	util.Success("Generated post!")
 	return fullPost, nil
 }
 

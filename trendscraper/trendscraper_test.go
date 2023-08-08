@@ -1,4 +1,4 @@
-package main
+package trendscraper
 
 import (
 	"fmt"
@@ -10,7 +10,7 @@ import (
 // }
 
 func TestSEOContext(t *testing.T) {
-	title, article, err := scrapePopularTrends("m")
+	title, article, err := ScrapePopularTrends("m")
 	if err != nil {
 		t.Error(err)
 	}

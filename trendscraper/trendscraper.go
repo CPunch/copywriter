@@ -1,4 +1,4 @@
-package main
+package trendscraper
 
 import (
 	"context"
@@ -6,31 +6,12 @@ import (
 	"math/rand"
 	"strings"
 
+	"git.openpunk.com/CPunch/copywriter/util"
 	"github.com/groovili/gogtrends"
 )
 
-func getPopularTrends(category string) []string {
-	Info("Scraping google trends in category '%s'...", category)
-	stories, err := gogtrends.Realtime(context.Background(), "en-US", "US", category)
-	if err != nil {
-		Fail("Failed to scrape google trends: %s", err.Error())
-		return nil
-	}
-
-	var trends []string
-	for _, trend := range stories {
-		trends = append(trends, fmt.Sprintf("%s - %s", trend.Articles[0].Title, trend.Articles[0].Snippet))
-	}
-
-	if len(trends) > 5 {
-		trends = trends[:5]
-	}
-
-	return trends
-}
-
-func scrapePopularTrends(category string) (title, article string, _ error) {
-	Info("Scraping google trends in category '%s'...", category)
+func ScrapePopularTrends(category string) (title, article string, _ error) {
+	util.Info("Scraping google trends in category '%s'...", category)
 	stories, err := gogtrends.Realtime(context.Background(), "en-US", "US", category)
 	if err != nil {
 		return "", "", err
@@ -48,8 +29,8 @@ func scrapePopularTrends(category string) (title, article string, _ error) {
 	return strings.Join(trends, "\n"), "", nil
 }
 
-func scrapeRealtimeNews(category string) (title, article string, _ error) {
-	Info("Scraping stories in category '%s'...", category)
+func ScrapeRealtimeNews(category string) (title, article string, _ error) {
+	util.Info("Scraping stories in category '%s'...", category)
 	stories, err := gogtrends.Realtime(context.Background(), "en-US", "US", category)
 	if err != nil {
 		// Fail("Failed to scrape google trends: %s", err.Error())
@@ -64,9 +45,9 @@ func scrapeRealtimeNews(category string) (title, article string, _ error) {
 
 	var context string
 	for _, article := range articles {
-		content, err := scrapeArticle(article.URL)
+		content, err := util.ScrapeArticle(article.URL)
 		if err != nil { // just skip the article
-			Warning("Failed to scrape %s: %s", article.URL, err.Error())
+			util.Warning("Failed to scrape %s: %s", article.URL, err.Error())
 			continue
 		}
 		context += fmt.Sprintf("# %s\n%s\n\n", article.Title, content)
@@ -74,8 +55,8 @@ func scrapeRealtimeNews(category string) (title, article string, _ error) {
 		// ctx.Keywords = append(ctx.Keywords, article.Title)
 	}
 
-	Info("Summarizing context...")
-	resp, err := SummarizeText(context)
+	util.Info("Summarizing context...")
+	resp, err := util.SummarizeText(context)
 	if err != nil {
 		return "", "", err
 	}

@@ -6,11 +6,8 @@ import (
 	"net/http"
 	"strings"
 
+	"git.openpunk.com/CPunch/copywriter/util"
 	"github.com/gocolly/colly"
-)
-
-const (
-	USER_AGENT = "Mozilla/5.0 (iPhone; CPU iPhone OS 16_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.5 Mobile/15E148 Safari/604.1"
 )
 
 var (
@@ -31,7 +28,7 @@ func validateURL(url string) bool {
 	}
 
 	// set useragent
-	req.Header.Set("User-Agent", USER_AGENT)
+	req.Header.Set("User-Agent", util.USER_AGENT)
 
 	// make the request
 	resp, err := http.DefaultClient.Do(req)
@@ -72,7 +69,7 @@ func doImageSearch(searchQuery string) []string {
 	searchString := strings.Replace(searchQuery, " ", "-", -1)
 
 	c := colly.NewCollector()
-	c.UserAgent = USER_AGENT
+	c.UserAgent = util.USER_AGENT
 	c.AllowURLRevisit = true
 	c.DisableCookies()
 

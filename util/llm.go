@@ -1,99 +1,18 @@
-package main
+package util
 
 import (
 	"context"
 	"fmt"
-	"io"
-	"net/http"
-	"os"
 	"strings"
 	"time"
 	"unicode"
 
-	"github.com/gocolly/colly"
 	openai "github.com/sashabaranov/go-openai"
 )
 
 const (
 	MAX_CHAT_RETRY = 5
-	USER_AGENT     = "Mozilla/5.0 (iPhone; CPU iPhone OS 16_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.5 Mobile/15E148 Safari/604.1"
 )
-
-func getEnv(key string, fallback string) string {
-	value, ok := os.LookupEnv(key)
-	if !ok {
-		return fallback
-	}
-	return value
-}
-
-// convert url to markdown
-func scrapeArticle(url string) (string, error) {
-	Info("Scraping article '%s'...", url)
-
-	md := ""
-	c := colly.NewCollector()
-	c.UserAgent = USER_AGENT
-	c.AllowURLRevisit = true
-	c.DisableCookies()
-
-	// scrape all images from a page
-	c.OnHTML("p", func(e *colly.HTMLElement) {
-		md += "\n" + e.Text
-	})
-
-	c.Visit(url)
-	return md, nil
-}
-
-type DownloadOptions struct {
-	URL      string
-	FilePath string
-	Header   http.Header
-}
-
-func downloadToFile(args DownloadOptions) error {
-	Info("Downloading %s to '%s'...", args.URL, args.FilePath)
-
-	req, err := http.NewRequest("GET", args.URL, nil)
-	if err != nil {
-		return err
-	}
-
-	// add headers
-	req.Header = args.Header
-
-	// make the request
-	resp, err := http.DefaultClient.Do(req)
-	if err != nil {
-		return err
-	}
-	defer resp.Body.Close()
-
-	// check status code
-	if resp.StatusCode != 200 {
-		return fmt.Errorf("Bad status code: %d", resp.StatusCode)
-	}
-
-	// write response body to file
-	f, err := os.Create(args.FilePath)
-	if err != nil {
-		return err
-	}
-	defer f.Close()
-
-	_, err = io.Copy(f, resp.Body)
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func getTimeString() string {
-	dt := time.Now()
-	return fmt.Sprintf(dt.Format("2006-01-02 15:04:05"))
-}
 
 type ResponseOptions struct {
 	MaxTokens int
@@ -107,7 +26,7 @@ type ResponseOptions struct {
 	Clean bool
 }
 
-func generateResponse(args ResponseOptions) (string, error) {
+func GenerateResponse(args ResponseOptions) (string, error) {
 	var model string
 	if args.UseGPT4 {
 		model = openai.GPT4
@@ -115,9 +34,7 @@ func generateResponse(args ResponseOptions) (string, error) {
 		model = openai.GPT3Dot5Turbo
 	}
 
-	// Warning("GPT Prompt:\n%s", args.Prompt)
-
-	client := openai.NewClient(getEnv("OPENAI_API_KEY", ""))
+	client := openai.NewClient(GetEnv("OPENAI_API_KEY", ""))
 
 	var err error
 	var resp openai.ChatCompletionResponse
@@ -157,7 +74,6 @@ func generateResponse(args ResponseOptions) (string, error) {
 			text = strings.TrimSpace(text)
 		}
 
-		// Info("Got response: %s", text)
 		return text, nil
 	}
 
@@ -178,7 +94,7 @@ func SummarizeText(text string) (string, error) {
 	var summary string
 	var err error
 	for _, chunk := range chunks {
-		summary, err = generateResponse(ResponseOptions{
+		summary, err = GenerateResponse(ResponseOptions{
 			MaxTokens: 2000,
 			UseGPT4:   false,
 			Prompt:    fmt.Sprintf("Summarize the following text:\n\n%s\n%s\n\nSummary:", summary, chunk),

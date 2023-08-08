@@ -8,6 +8,7 @@ import (
 	"strings"
 	"unicode"
 
+	"git.openpunk.com/CPunch/copywriter/util"
 	"github.com/google/subcommands"
 )
 
@@ -55,27 +56,27 @@ func (w *WriteCommand) Execute(ctx context.Context, f *flag.FlagSet, _ ...interf
 	// create the blog writer, set the title and output directory
 	bw := NewBlogWriter(config)
 	if err := bw.setTitle(title); err != nil {
-		Fail("Failed to set title: %v", err)
+		util.Fail("Failed to set title: %v", err)
 	}
 
 	dirPath := path.Join(w.OutDir, genBlogFilePath(bw.Title))
 	if err := os.MkdirAll(dirPath, 0777); err != nil {
-		Fail("Failed to create directory '%s': %v", dirPath, err)
+		util.Fail("Failed to create directory '%s': %v", dirPath, err)
 	}
 	bw.setOutDir(dirPath)
 
 	// generate the post
 	post, err := bw.WritePost()
 	if err != nil {
-		Fail("Failed to generate post: %v", err)
+		util.Fail("Failed to generate post: %v", err)
 	}
 	outFile := path.Join(dirPath, "index.md")
 
-	Info("Writing to file '%s'...", outFile)
+	util.Info("Writing to file '%s'...", outFile)
 	if err := os.WriteFile(outFile, []byte(post), 0644); err != nil {
-		Fail("Failed to write to file '%s': %v", outFile, err)
+		util.Fail("Failed to write to file '%s': %v", outFile, err)
 	}
 
-	Success("Done!")
+	util.Success("Done!")
 	return subcommands.ExitSuccess
 }
