@@ -10,11 +10,13 @@ import (
 	"time"
 	"unicode"
 
+	"github.com/gocolly/colly"
 	openai "github.com/sashabaranov/go-openai"
 )
 
 const (
 	MAX_CHAT_RETRY = 5
+	USER_AGENT     = "Mozilla/5.0 (iPhone; CPU iPhone OS 16_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.5 Mobile/15E148 Safari/604.1"
 )
 
 func getEnv(key string, fallback string) string {
@@ -23,6 +25,25 @@ func getEnv(key string, fallback string) string {
 		return fallback
 	}
 	return value
+}
+
+// convert url to markdown
+func scrapeArticle(url string) (string, error) {
+	Info("Scraping article '%s'...", url)
+
+	md := ""
+	c := colly.NewCollector()
+	c.UserAgent = USER_AGENT
+	c.AllowURLRevisit = true
+	c.DisableCookies()
+
+	// scrape all images from a page
+	c.OnHTML("p", func(e *colly.HTMLElement) {
+		md += "\n" + e.Text
+	})
+
+	c.Visit(url)
+	return md, nil
 }
 
 type DownloadOptions struct {
@@ -94,6 +115,8 @@ func generateResponse(args ResponseOptions) (string, error) {
 		model = openai.GPT3Dot5Turbo
 	}
 
+	// Warning("GPT Prompt:\n%s", args.Prompt)
+
 	client := openai.NewClient(getEnv("OPENAI_API_KEY", ""))
 
 	var err error
@@ -134,8 +157,37 @@ func generateResponse(args ResponseOptions) (string, error) {
 			text = strings.TrimSpace(text)
 		}
 
+		// Info("Got response: %s", text)
 		return text, nil
 	}
 
 	return "", fmt.Errorf("ChatCompletion error: %v\n", err)
+}
+
+func SummarizeText(text string) (string, error) {
+	size := 4096
+	chunks := []string{}
+	for i := 0; i < len(text); i += size {
+		end := i + size
+		if end > len(text) {
+			end = len(text)
+		}
+		chunks = append(chunks, text[i:end])
+	}
+
+	var summary string
+	var err error
+	for _, chunk := range chunks {
+		summary, err = generateResponse(ResponseOptions{
+			MaxTokens: 2000,
+			UseGPT4:   false,
+			Prompt:    fmt.Sprintf("Summarize the following text:\n\n%s\n%s\n\nSummary:", summary, chunk),
+		})
+		if err != nil {
+			return "", err
+		}
+	}
+
+	Info("Summary: %s", summary)
+	return summary, nil
 }

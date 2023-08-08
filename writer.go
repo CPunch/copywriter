@@ -21,6 +21,8 @@ type BlogWriter struct {
 	outDir     string
 	imageCount int
 	maxImages  int
+	TitleCtx   string
+	ArticleCtx string
 	Title      string
 	Content    string // markdown with injected images
 	Tags       string
@@ -50,6 +52,7 @@ func (bw *BlogWriter) getNextFile() (fileName, filePath string) {
 // returns the filename of the downloaded image
 // in the outDir
 func (bw *BlogWriter) genImage(query string) (string, error) {
+	return query, nil
 	if bw.config.ImageStylePrompt != "" {
 		query = query + " " + strings.TrimSpace(bw.config.ImageStylePrompt)
 	}
@@ -135,13 +138,12 @@ func (bw *BlogWriter) populateImages(content string) (string, error) {
 
 func (bw *BlogWriter) genBlogTitle() (string, error) {
 	Info("Generating blog title...")
-	trends := getPopularTrends(bw.config.TrendingCategory)
 
 	title, err := generateResponse(ResponseOptions{
 		MaxTokens: 40,
 		Prompt: fmt.Sprintf(
-			"%s\nThe following is a list of topics:\n%s\n\nAn example of a short, simple and eye-catching title of an article that fits with some of these topics: ",
-			bw.config.CustomPrompt, strings.Join(trends, "\n"),
+			"Write a short, simple and eye-catching title of an article that readers of the following text would be interested in:\n\n%s\nThe following is a list of articles the reader is interested in:\n\n%s\n\nTitle: ",
+			bw.config.CustomPrompt, bw.TitleCtx,
 		),
 		UseGPT4: false,
 		Clean:   true,
@@ -197,8 +199,8 @@ func (bw *BlogWriter) genBlogContent() (string, error) {
 	markdown, err := generateResponse(ResponseOptions{
 		MaxTokens: 5000,
 		Prompt: fmt.Sprintf(
-			"%s\nThe following is a 1000 word article written in markdown. Use '##' for section headings. Mark where you would insert an image using '![](<DESCRIPTION OF IMAGE>)'\n---\n\n## %s\n\n![](%s)\n\n",
-			bw.config.CustomPrompt, bw.Title, thumbnailQuery,
+			"%s\n%s\nWrite an interesting and informative 1000 word article that readers would find relevant written in markdown. Use '##' for section headings. Mark where you would insert an image using '![](<DESCRIPTION OF IMAGE>)'.\n---\n\n## %s\n\n![](%s)\n",
+			bw.config.CustomPrompt, bw.ArticleCtx, bw.Title, thumbnailQuery,
 		),
 		UseGPT4: true,
 		Clean:   false,
@@ -218,10 +220,28 @@ func (bw *BlogWriter) genHeaders() string {
 	)
 }
 
+func (bw *BlogWriter) genTopicCtx() (err error) {
+	if bw.config.TopicType == TOPIC_TYPE_NEWS {
+		bw.TitleCtx, bw.ArticleCtx, err = scrapeRealtimeNews(bw.config.TrendingCategory)
+		return
+	}
+
+	bw.TitleCtx, bw.ArticleCtx, err = scrapePopularTrends(bw.config.TrendingCategory)
+	return
+}
+
 // passing an empty string "" will force us to generate the title using google trends
 func (bw *BlogWriter) setTitle(title string) (err error) {
 	if title == "" {
+		err = bw.genTopicCtx()
+		if err != nil {
+			return
+		}
+
 		title, err = bw.genBlogTitle()
+		if err != nil {
+			return
+		}
 	}
 
 	Info("Title: '%s'...", title)

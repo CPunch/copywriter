@@ -5,8 +5,18 @@ import (
 	"testing"
 )
 
-func TestGetPopularTrends(t *testing.T) {
-	fmt.Println(getPopularTrends("all"))
+// func TestGetPopularTrends(t *testing.T) {
+// 	fmt.Println(getPopularTrends("all"))
+// }
+
+func TestSEOContext(t *testing.T) {
+	title, article, err := scrapePopularTrends("m")
+	if err != nil {
+		t.Error(err)
+	}
+
+	fmt.Println(title)
+	fmt.Println(article)
 }
 
 // func TestGenNewBlogTitle(t *testing.T) {

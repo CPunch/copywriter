@@ -3,6 +3,7 @@ module git.openpunk.com/CPunch/copywriter
 go 1.20
 
 require (
+	github.com/JohannesKaufmann/html-to-markdown v1.4.0
 	github.com/fatih/color v1.15.0
 	github.com/go-ini/ini v1.67.0
 	github.com/gocolly/colly v1.2.0
