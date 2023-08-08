@@ -54,7 +54,6 @@ func (bw *BlogWriter) getNextFile() (fileName, filePath string) {
 // returns the filename of the downloaded image
 // in the outDir
 func (bw *BlogWriter) genImage(query string) (string, error) {
-	return query, nil
 	if bw.config.ImageStylePrompt != "" {
 		query = query + " " + strings.TrimSpace(bw.config.ImageStylePrompt)
 	}
