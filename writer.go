@@ -4,8 +4,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"os"
 	"path"
 	"strings"
+	"unicode"
 
 	"git.openpunk.com/CPunch/copywriter/imagescraper"
 	"git.openpunk.com/CPunch/copywriter/replicate"
@@ -14,8 +16,7 @@ import (
 )
 
 const (
-	MAX_RETRY       = 5
-	IMAGE_FREQUENCY = 15
+	MAX_RETRY = 5
 )
 
 type BlogWriter struct {
@@ -32,6 +33,22 @@ type BlogWriter struct {
 	Thumbnail  string
 }
 
+func genBlogFilePath(title string) string {
+	// strip any non-alphanumeric characters
+	title = strings.Map(func(r rune) rune {
+		if unicode.IsLetter(r) || unicode.IsNumber(r) || unicode.IsSpace(r) {
+			return r
+		}
+		return -1
+	}, title)
+
+	title = strings.TrimSpace(title)
+	title = strings.ReplaceAll(title, " ", "-")
+	title = strings.ToLower(title)
+
+	return title
+}
+
 func NewBlogWriter(config *ConfigData) *BlogWriter {
 	return &BlogWriter{
 		config:     config,
@@ -39,8 +56,13 @@ func NewBlogWriter(config *ConfigData) *BlogWriter {
 	}
 }
 
-func (bw *BlogWriter) setOutDir(outDir string) {
-	bw.outDir = outDir
+// builds the output directory for the blog writer
+func (bw *BlogWriter) setupOutDir(outDir string) {
+	dirPath := path.Join(outDir, genBlogFilePath(bw.Title))
+	if err := os.MkdirAll(dirPath, 0777); err != nil {
+		util.Fail("Failed to create directory '%s': %v", dirPath, err)
+	}
+	bw.outDir = dirPath
 }
 
 func (bw *BlogWriter) getNextFile() (fileName, filePath string) {
@@ -63,6 +85,7 @@ func (bw *BlogWriter) genImage(query string) (string, error) {
 	fileName, filePath := bw.getNextFile()
 	header := make(http.Header)
 	var url string
+
 	// check if REPLICATE_API_KEY is in our environment, if it's not we'll fallback to our image scraper
 	if token := util.GetEnv("REPLICATE_API_KEY", ""); token != "" {
 		util.Info("Using replicate.ai to generate image...")
@@ -118,6 +141,7 @@ func (bw *BlogWriter) populateImages(content string) (string, error) {
 		if strings.Contains(lines[i], "![](") {
 			imgPrompt := strings.ReplaceAll(lines[i], "![](", "")
 			imgPrompt = strings.ReplaceAll(imgPrompt, ")", "")
+
 			// inject image
 			imgURL, err := bw.genImage(imgPrompt)
 			if err != nil {
@@ -189,12 +213,11 @@ func (bw *BlogWriter) genBlogTags() (string, error) {
 }
 
 func (bw *BlogWriter) genBlogContent() (string, error) {
-	var err error
-	var thumbnailQuery string
-	bw.Thumbnail, thumbnailQuery, err = bw.genImageAboutMeta(bw.Title)
+	thumb, thumbnailQuery, err := bw.genImageAboutMeta(bw.Title)
 	if err != nil {
 		return "", fmt.Errorf("Failed to generate thumbnail: %v", err)
 	}
+	bw.Thumbnail = thumb
 
 	util.Info("Generating blog post contents...")
 	markdown, err := util.GenerateResponse(util.ResponseOptions{
@@ -231,43 +254,49 @@ func (bw *BlogWriter) genTopicCtx() (err error) {
 	return
 }
 
-// passing an empty string "" will force us to generate the title using google trends
-func (bw *BlogWriter) setTitle(title string) (err error) {
+// passing an empty string "" will generate the title using the selected topic type
+func (bw *BlogWriter) setTitle(title string) error {
 	if title == "" {
-		err = bw.genTopicCtx()
+		err := bw.genTopicCtx()
 		if err != nil {
-			return
+			return err
 		}
 
 		title, err = bw.genBlogTitle()
 		if err != nil {
-			return
+			return err
 		}
 	}
 
 	util.Info("Title: '%s'...", title)
 	bw.Title = title
-	return
+	return nil
 }
 
-func (bw *BlogWriter) WritePost() (string, error) {
+func (bw *BlogWriter) WritePost() error {
 	var err error
 	bw.Content, err = bw.genBlogContent()
 	if err != nil {
-		return "", fmt.Errorf("Failed to generate blog content: %v", err)
+		return fmt.Errorf("Failed to generate blog content: %v", err)
 	}
 
 	bw.Tags, err = bw.genBlogTags()
 	if err != nil {
-		return "", fmt.Errorf("Failed to generate blog tags: %v", err)
+		return fmt.Errorf("Failed to generate blog tags: %v", err)
 	}
 	bw.Author = "Mason Coleman"
 
 	header := bw.genHeaders()
 	fullPost := fmt.Sprintf("%s\n%s", header, bw.Content)
-
 	util.Success("Generated post!")
-	return fullPost, nil
+
+	// write hugo markdown file
+	outFile := path.Join(bw.outDir, "index.md")
+	util.Info("Writing to file '%s'...", outFile)
+	if err := os.WriteFile(outFile, []byte(fullPost), 0644); err != nil {
+		return fmt.Errorf("Failed to write to file '%s': %v", outFile, err)
+	}
+	return nil
 }
 
 // That mary was goin' around with an old flame. That burned me up,

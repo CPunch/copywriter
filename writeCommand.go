@@ -3,30 +3,11 @@ package main
 import (
 	"context"
 	"flag"
-	"os"
-	"path"
 	"strings"
-	"unicode"
 
 	"git.openpunk.com/CPunch/copywriter/util"
 	"github.com/google/subcommands"
 )
-
-func genBlogFilePath(title string) string {
-	// strip any non-alphanumeric characters
-	title = strings.Map(func(r rune) rune {
-		if unicode.IsLetter(r) || unicode.IsNumber(r) || unicode.IsSpace(r) {
-			return r
-		}
-		return -1
-	}, title)
-
-	title = strings.TrimSpace(title)
-	title = strings.ReplaceAll(title, " ", "-")
-	title = strings.ToLower(title)
-
-	return title
-}
 
 type WriteCommand struct {
 	OutDir string
@@ -59,22 +40,11 @@ func (w *WriteCommand) Execute(ctx context.Context, f *flag.FlagSet, _ ...interf
 		util.Fail("Failed to set title: %v", err)
 	}
 
-	dirPath := path.Join(w.OutDir, genBlogFilePath(bw.Title))
-	if err := os.MkdirAll(dirPath, 0777); err != nil {
-		util.Fail("Failed to create directory '%s': %v", dirPath, err)
-	}
-	bw.setOutDir(dirPath)
+	bw.setupOutDir(w.OutDir)
 
-	// generate the post
-	post, err := bw.WritePost()
-	if err != nil {
+	// write the post
+	if err := bw.WritePost(); err != nil {
 		util.Fail("Failed to generate post: %v", err)
-	}
-	outFile := path.Join(dirPath, "index.md")
-
-	util.Info("Writing to file '%s'...", outFile)
-	if err := os.WriteFile(outFile, []byte(post), 0644); err != nil {
-		util.Fail("Failed to write to file '%s': %v", outFile, err)
 	}
 
 	util.Success("Done!")
