@@ -22,12 +22,14 @@ type ResponseOptions struct {
 	MaxTokens int
 	Prompt    string
 	UseGPT4   bool
+	UseLong   bool // if gpt4, will use 32k model. if gpt3, will use the 16k model
 	/*
 		Clean: removes any non alphanumeric characters, and trims
 		whitespace. first \n is marked as EOF, so it will only return
 		the first line
 	*/
-	Clean bool
+	Clean                 bool
+	CleanKeepPunctuations bool
 }
 
 func init() {
@@ -37,12 +39,20 @@ func init() {
 func GenerateResponse(args ResponseOptions) (string, error) {
 	var model string
 	if args.UseGPT4 {
-		model = openai.GPT4
+		if args.UseLong {
+			model = openai.GPT432K
+		} else {
+			model = openai.GPT4
+		}
 	} else {
-		model = openai.GPT3Dot5Turbo
+		if args.UseLong {
+			model = openai.GPT3Dot5Turbo16K
+		} else {
+			model = openai.GPT3Dot5Turbo
+		}
 	}
 
-	Info("Generating response with prompt:\n%s", args.Prompt)
+	// Info("Generating response with prompt:\n%s", args.Prompt)
 
 	var err error
 	var resp openai.ChatCompletionResponse
@@ -75,6 +85,13 @@ func GenerateResponse(args ResponseOptions) (string, error) {
 				if unicode.IsLetter(r) || unicode.IsNumber(r) || unicode.IsSpace(r) {
 					return r
 				}
+
+				if args.CleanKeepPunctuations {
+					if r == '.' || r == ',' || r == '!' || r == '?' ||
+						r == ':' || r == ';' || r == '-' {
+						return r
+					}
+				}
 				return -1
 			}, text)
 
@@ -89,7 +106,7 @@ func GenerateResponse(args ResponseOptions) (string, error) {
 }
 
 func SummarizeText(text string) (string, error) {
-	size := 4096
+	size := 8096
 	chunks := []string{}
 	for i := 0; i < len(text); i += size {
 		end := i + size
@@ -103,9 +120,10 @@ func SummarizeText(text string) (string, error) {
 	var err error
 	for _, chunk := range chunks {
 		summary, err = GenerateResponse(ResponseOptions{
-			MaxTokens: 2000,
+			MaxTokens: 6000,
 			UseGPT4:   false,
-			Prompt:    fmt.Sprintf("Summarize the following text:\n\n%s\n%s\n\nSummary:", summary, chunk),
+			UseLong:   true,
+			Prompt:    fmt.Sprintf("Summarize the following text while retaining all relevant information:\n\n%s\n%s\n\nSummary:", summary, chunk),
 		})
 		if err != nil {
 			return "", err

@@ -197,8 +197,9 @@ func (bw *BlogWriter) genBlogTitle() (string, error) {
 			"%s\n%s\n---\nWrite a short, simple and SEO optimized title for long-tail searches of an article which relates to anything above: ",
 			bw.config.CustomPrompt, bw.TitleCtx,
 		),
-		UseGPT4: false,
-		Clean:   true,
+		UseGPT4:               false,
+		Clean:                 true,
+		CleanKeepPunctuations: true,
 	})
 	if err != nil {
 		return "", err
