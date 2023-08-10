@@ -14,6 +14,10 @@ const (
 	MAX_CHAT_RETRY = 5
 )
 
+var (
+	client *openai.Client
+)
+
 type ResponseOptions struct {
 	MaxTokens int
 	Prompt    string
@@ -26,6 +30,10 @@ type ResponseOptions struct {
 	Clean bool
 }
 
+func init() {
+	client = openai.NewClient(GetEnv("OPENAI_API_KEY", ""))
+}
+
 func GenerateResponse(args ResponseOptions) (string, error) {
 	var model string
 	if args.UseGPT4 {
@@ -34,7 +42,7 @@ func GenerateResponse(args ResponseOptions) (string, error) {
 		model = openai.GPT3Dot5Turbo
 	}
 
-	client := openai.NewClient(GetEnv("OPENAI_API_KEY", ""))
+	Info("Generating response with prompt:\n%s", args.Prompt)
 
 	var err error
 	var resp openai.ChatCompletionResponse

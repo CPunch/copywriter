@@ -26,7 +26,17 @@ func ScrapePopularTrends(category string) (title, article string, _ error) {
 		trends = trends[:10]
 	}
 
-	return strings.Join(trends, "\n"), "", nil
+	resp, err := util.GenerateResponse(util.ResponseOptions{
+		MaxTokens: 100,
+		Prompt:    fmt.Sprintf("%s\n---\nWrite some keywords for the above articles: ", strings.Join(trends, "\n")),
+		UseGPT4:   false,
+		Clean:     false,
+	})
+	if err != nil {
+		return "", "", err
+	}
+
+	return fmt.Sprintf("The following is a list of topics that readers might be interested in:\n%s", resp), "", nil
 }
 
 func ScrapeRealtimeNews(category string) (title, article string, _ error) {
@@ -42,6 +52,8 @@ func ScrapeRealtimeNews(category string) (title, article string, _ error) {
 	if len(articles) > 3 {
 		articles = articles[:3]
 	}
+
+	title = "The following is a list of articles related to the topic:\n"
 
 	var context string
 	for _, article := range articles {

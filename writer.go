@@ -161,30 +161,6 @@ func (bw *BlogWriter) populateImages(content string) (string, error) {
 	return strings.Join(lines, "\n"), nil
 }
 
-func (bw *BlogWriter) genBlogTitle() (string, error) {
-	util.Info("Generating blog title...")
-
-	title, err := util.GenerateResponse(util.ResponseOptions{
-		MaxTokens: 40,
-		Prompt: fmt.Sprintf(
-			"Write a short, simple and eye-catching title of an article that readers of the following text would be interested in:\n\n%s\nThe following is a list of articles the reader is interested in:\n\n%s\n\nTitle: ",
-			bw.config.CustomPrompt, bw.TitleCtx,
-		),
-		UseGPT4: false,
-		Clean:   true,
-	})
-	if err != nil {
-		return "", err
-	}
-
-	// no title?
-	if len(title) == 0 {
-		return "", fmt.Errorf("Failed to create title!")
-	}
-
-	return title, nil
-}
-
 func (bw *BlogWriter) genBlogTags() (string, error) {
 	util.Info("Generating tags...")
 	for i := 0; i < MAX_RETRY; i++ { // just in case gpt is a DUMBASS; i don't wanna burn a million dollars
@@ -210,6 +186,30 @@ func (bw *BlogWriter) genBlogTags() (string, error) {
 
 	util.Warning("GPT failed to generate any valid tags")
 	return "[]", nil
+}
+
+func (bw *BlogWriter) genBlogTitle() (string, error) {
+	util.Info("Generating blog title...")
+
+	title, err := util.GenerateResponse(util.ResponseOptions{
+		MaxTokens: 40,
+		Prompt: fmt.Sprintf(
+			"%s\n%s\n---\nWrite a short, simple and SEO optimized title for long-tail searches of an article which relates to anything above: ",
+			bw.config.CustomPrompt, bw.TitleCtx,
+		),
+		UseGPT4: false,
+		Clean:   true,
+	})
+	if err != nil {
+		return "", err
+	}
+
+	// no title?
+	if len(title) == 0 {
+		return "", fmt.Errorf("Failed to create title!")
+	}
+
+	return title, nil
 }
 
 func (bw *BlogWriter) genBlogContent() (string, error) {
@@ -275,6 +275,7 @@ func (bw *BlogWriter) setTitle(title string) error {
 
 func (bw *BlogWriter) WritePost() error {
 	var err error
+
 	bw.Content, err = bw.genBlogContent()
 	if err != nil {
 		return fmt.Errorf("Failed to generate blog content: %v", err)
