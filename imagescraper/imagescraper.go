@@ -94,10 +94,6 @@ func doImageSearch(searchQuery string) []string {
 	// pexelsQuery := strings.Replace(searchString, "-", "%20", -1)
 	stocSnapQuery := strings.Replace(searchString, "-", "+", -1)
 
-	// c.Visit("https://unsplash.com/s/" + searchString)
-	// c.Visit("https://burst.shopify.com/photos/search?utf8=%E2%9C%93&q=" + searchString + "&button=")
-	// c.Visit("https://www.pexels.com/search/" + pexelsQuery + "/")
-	// c.Visit("https://www.flickr.com/search/?text=" + pexelsQuery)
 	c.Visit("https://www.google.com/images?q=" + stocSnapQuery)
 	c.Visit("https://stocksnap.io/search/" + stocSnapQuery)
 
