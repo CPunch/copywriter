@@ -24,7 +24,7 @@ You can tell copywriter to write a blog about a specific topic by passing a titl
 ```
 > Copywriter will create a new slug-like directory in the out path you specified and write all of the content there.
 
-You'll need to populate a few environment variables before running copywriter however, including your OpenAI API Key and (replicate)[https://replicate.com] API Key:
+You'll need to populate a few environment variables before running copywriter however, including your OpenAI API Key and [replicate](https://replicate.com) API Key:
 ```sh
 export OPENAI_API_KEY=sk-################################################
 export REPLICATE_API_KEY=r8_#####################################
