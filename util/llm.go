@@ -82,11 +82,9 @@ func GenerateResponse(args ResponseOptions) (string, error) {
 				return "", err
 			}
 
-			var timeToSleep time.Duration
+			timeToSleep := 2 * time.Second
 			if strings.Contains(err.Error(), "Rate limit reached") {
 				timeToSleep = 5 * time.Second
-			} else {
-				timeToSleep = 2 * time.Second
 			}
 
 			// try again but sleep for a bit
