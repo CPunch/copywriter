@@ -23,7 +23,7 @@ func ScrapeArticle(url string) (string, error) {
 	c.AllowURLRevisit = true
 	c.DisableCookies()
 
-	// scrape all images from a page
+	// scrape all paragraphs from a page
 	c.OnHTML("p", func(e *colly.HTMLElement) {
 		md += "\n" + e.Text
 	})

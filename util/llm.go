@@ -116,7 +116,7 @@ func GenerateResponse(args ResponseOptions) (string, error) {
 		return text, nil
 	}
 
-	return "", fmt.Errorf("ChatCompletion error: %v\n", err)
+	return "", fmt.Errorf("ChatCompletion error: %v", err)
 }
 
 func SummarizeText(text string) (string, error) {
